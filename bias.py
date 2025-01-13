@@ -39,7 +39,7 @@ stacked_biases = np.zeros(shape, dtype=np.float32)
 for i, file in enumerate(tqdm(bias_files)):
     stacked_biases[:, :, i] = fitsio.read(file)[region[1][0]:region[1][1], region[0][0]:region[0][1]]
 
-# perform a trimmed mean to remove outliers - ignore 10% of the highest and lowest values
+# perform a trimmed mean to remove outliers - ignore highest and lowest values
 stacked_biases = np.mean(np.sort(stacked_biases, axis=2)[:, :, 1:-1], axis=2)
 master_bias = stacked_biases.astype(np.float32)
 

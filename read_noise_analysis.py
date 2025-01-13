@@ -72,12 +72,12 @@ def plot_read_noise(mean_bias, bias_std):
     gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1], wspace=0, hspace=0)
 
     ax1 = plt.subplot(gs[0])
-    hb = ax1.hist2d(mean_bias, bias_std, bins=80, cmap='inferno_r', norm=LogNorm(), range=[[270, 350], [0, 80]])
+    hb = ax1.hist2d(mean_bias, bias_std, bins=80, cmap='inferno_r', norm=LogNorm(), range=[[280, 320], [0, 40]])
     ax1.set_xlabel('Mean (ADU)')
     ax1.set_ylabel('Standard Deviation (ADU)')
 
     ax2 = plt.subplot(gs[1])
-    ax2.hist(bias_std, bins=80, orientation='horizontal', color='k', histtype='step', density=False, range=[0, 80])
+    ax2.hist(bias_std, bins=80, orientation='horizontal', color='k', histtype='step', density=False, range=[0, 40])
     ax2.set_xlabel('Number of Pixels')
     ax2.set_xscale('log')
     # put ticks at 10^2 and 10^5

@@ -147,10 +147,9 @@ def _wcs_from_table(objects, frame_shape, scale_low, scale_high, estimate_coord=
                 '/opt/homebrew/bin/solve-field',
                 '--no-plots',
                 '--scale-units', 'arcsecperpix',
-                '--no-tweak', '--no-remove-lines',  # '--no-fits2fits',
+                '-t 3', '--no-remove-lines',  # '--no-fits2fits',
                 '--scale-high', str(scale_high), '--scale-low', str(scale_low),
                 '--width', str(frame_shape[1]), '--height', str(frame_shape[0]),
-                # '--parity', 'neg',
                 xyls_path]
 
             if estimate_coord is not None and estimate_coord_radius is not None:
@@ -325,6 +324,7 @@ def polynomial_from_header(wcs_header, axis, force3rd):
     """
     # Astrometry.net sometimes doesn't fit distortion terms!
     if axis + '_ORDER' not in wcs_header or force3rd:
+        print(f"Using 3rd-order distortion for {axis} axis")
         return models.Polynomial2D(degree=3)
 
     coeffs = {}
@@ -332,10 +332,11 @@ def polynomial_from_header(wcs_header, axis, force3rd):
         if key.startswith(axis + '_') and key != axis + '_ORDER':
             coeffs['c' + key[2:]] = wcs_header[key]
 
+    print(f"Using {wcs_header[axis + '_ORDER']}-order distortion for {axis} axis")
     return models.Polynomial2D(degree=wcs_header[axis + '_ORDER'], **coeffs)
 
 
-def prepare_frame(input_path, output_path, catalog, force3rd, save_matched_cat):
+def prepare_frame(input_path, output_path, catalog, force3rd):
     """
     Prepare the frame for WCS solution. The output is the solved image
 
@@ -349,8 +350,6 @@ def prepare_frame(input_path, output_path, catalog, force3rd, save_matched_cat):
         Reference catalog
     force3rd : boolean
         Force a new 3rd order poly for distortion fitting
-    save_matched_cat : boolean
-        Output the matched catalog for analysis, includes basic photometry
 
     Returns
     -------
@@ -413,6 +412,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd, save_matched_cat):
 
     wcs_header = _wcs_from_table(objects, frame_data.shape, scale_min,
                                  scale_max, estimate_coord, estimate_coord_radius)
+    initial_wcs = WCS(wcs_header)
 
     if not wcs_header:
         print('Failed to find initial WCS solution - aborting')
@@ -446,7 +446,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd, save_matched_cat):
             delta_y = np.abs(wcs_y - objects['Y'])
             delta_xy = np.sqrt(delta_x ** 2 + delta_y ** 2)
 
-            zp_mask = delta_xy > 2.5  # pixels
+            zp_mask = delta_xy > 10  # pixels
 
             zp_delta_mag = matched_cat['G_MAG'] + 2.5 * np.log10(objects['FLUX'] / frame_exptime)
             zp_mean, _, zp_stddev = sigma_clipped_stats(zp_delta_mag, mask=zp_mask, sigma=zp_clip_sigma)
@@ -512,7 +512,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd, save_matched_cat):
     # output the updated solved fits image
     fits.HDUList(hdu_list).writeto(output_path, overwrite=True)
 
-    return wcs_header, objects[zp_filter], matched_cat[zp_filter], xy_residuals
+    return wcs_header, objects[zp_filter], matched_cat[zp_filter], xy_residuals, initial_wcs
 
 
 if __name__ == "__main__":
@@ -535,38 +535,53 @@ if __name__ == "__main__":
             header = fits.getheader(input_image)
             x_width = header['NAXIS1']
             y_width = header['NAXIS2']
-            final_wcs, objects_matched, catalog_matched, residuals = prepare_frame(input_image,
+            final_wcs, objects_matched, catalog_matched, residuals, initial_wcs = prepare_frame(input_image,
                                                                                    input_image,
                                                                                    master_catalog,
-                                                                                   args.force3rd,
-                                                                                   args.save_matched_cat)
+                                                                                   args.force3rd)
             wcs_store.append(final_wcs)
 
             if final_wcs is None:
                 print("Failed to solve {}".format(input_image))
                 continue
 
-            # plot diagnostics on the fitting here using the matched catalog/objects
-            # from the source detection
-            ref_x = final_wcs['CRPIX1']
-            ref_y = final_wcs['CRPIX2']
-            radial_distance = np.sqrt((np.array(objects_matched['X']) - ref_x) ** 2 +
-                                      (np.array(objects_matched['Y']) - ref_y) ** 2)
-
-            # generate vecotrs for quiver plot
-            vector_scale = 1000
-            wcs_pos_x, wcs_pos_y = WCS(final_wcs).all_world2pix(catalog_matched['RA'],
-                                                                catalog_matched['DEC'], 1)
-            x_comp = (wcs_pos_x - objects_matched['X']) * vector_scale
-            y_comp = (wcs_pos_y - objects_matched['Y']) * vector_scale
-
             if args.plot:
-                fig_q, ax_q = plt.subplots(1, figsize=(10, 10))
-                ax_q.set_title('WCS - Source Detect Positions (x{})'.format(vector_scale))
-                ax_q.quiver(objects_matched['X'], objects_matched['Y'], x_comp, y_comp, units='xy', scale_units='xy',
-                            scale=1)
-                ax_q.set_xlim(0, x_width)
-                ax_q.set_ylim(0, y_width)
+                plt.rcParams['font.family'] = 'Times'
+
+                # plot diagnostics on the fitting here using the matched catalog/objects
+                # from the source detection
+                ref_x = final_wcs['CRPIX1']
+                ref_y = final_wcs['CRPIX2']
+                radial_distance = np.sqrt((np.array(objects_matched['X']) - ref_x) ** 2 +
+                                          (np.array(objects_matched['Y']) - ref_y) ** 2)
+
+                # generate vecotrs for quiver plot
+                vector_scale = 1000
+                wcs_pos_x, wcs_pos_y = WCS(final_wcs).all_world2pix(catalog_matched['RA'],
+                                                                    catalog_matched['DEC'], 1)
+                x_comp = (wcs_pos_x - objects_matched['X'])
+                y_comp = (wcs_pos_y - objects_matched['Y'])
+
+
+                init_pos_x, init_pos_y = initial_wcs.all_world2pix(catalog_matched['RA'],
+                                                                   catalog_matched['DEC'], 1)
+                x_comp_init = (init_pos_x - objects_matched['X'])
+                y_comp_init = (init_pos_y - objects_matched['Y'])
+                residuals_init = np.sqrt(x_comp_init ** 2 + y_comp_init ** 2)
+                print(f"Initial median residuals: {np.median(residuals_init):.4f} pix")
+                print(f"Fitted median residuals: {np.median(residuals):.4f} pix")
+
+                fig_q, ax_q = plt.subplots(2, figsize=(10, 20))
+                ax_q[0].set_title('WCS - Source Detect Positions (x{})'.format(vector_scale))
+                ax_q[0].quiver(objects_matched['X'], objects_matched['Y'], x_comp_init, y_comp_init, units='xy', scale_units='xy',
+                               scale=1 / vector_scale)
+                ax_q[0].set_xlim(0, x_width)
+                ax_q[0].set_ylim(0, y_width)
+                ax_q[1].set_title('WCS - Source Detect Positions (x{})'.format(vector_scale))
+                ax_q[1].quiver(objects_matched['X'], objects_matched['Y'], x_comp, y_comp, units='xy', scale_units='xy',
+                               scale=1 / vector_scale)
+                ax_q[1].set_xlim(0, x_width)
+                ax_q[1].set_ylim(0, y_width)
                 fig_q.tight_layout()
                 fig_q.savefig('{}_quiver_plot.png'.format(base_name))
 

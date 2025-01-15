@@ -387,7 +387,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd, save_matched_cat):
     area_min = 10
     area_max = 400
     scale_min = 0.38
-    scale_max = 0.41
+    scale_max = 0.46
     detection_sigma = 3
     zp_clip_sigma = 3
 
@@ -395,10 +395,16 @@ def prepare_frame(input_path, output_path, catalog, force3rd, save_matched_cat):
         estimate_coord = SkyCoord(ra=frame.header['TELRA'],
                                   dec=frame.header['TELDEC'],
                                   unit=(u.hourangle, u.deg))
-        estimate_coord_radius = 1 * u.deg
     except KeyError:
-        print('No commanded RA position, skipping!')
-        return None, None, None, None
+        try:
+            estimate_coord = SkyCoord(ra=frame.header['MNTRAD'],
+                                      dec=frame.header['MNTDECD'],
+                                      unit=(u.deg, u.deg))
+        except KeyError:
+            print('No commanded RA position, skipping!')
+            return None, None, None, None
+
+    estimate_coord_radius = 1 * u.deg
 
     # Detect all objects in the image and attempt a full-frame solution
     objects = _detect_objects_sep(frame_data_corr, frame_bg.globalrms, area_min,
@@ -487,7 +493,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd, save_matched_cat):
         # calculate flux with aperture radius of 10 pixels
         zp_calc_objects = objects[zp_filter]
         flux10, fluxerr10, _ = sep.sum_circle(frame_data_corr, zp_calc_objects['X'], zp_calc_objects['Y'], 10.0,
-                                              subpix=0, gain=1.1)
+                                              subpix=0, gain=1)
         zp_calc_objects['FLUX10'] = flux10
         zp_calc_objects['FLUXERR10'] = fluxerr10
         zp_delta_mag = matched_cat[zp_filter]['G_MAG'] + 2.5 * np.log10(zp_calc_objects['FLUX10'] / frame_exptime)
@@ -566,14 +572,14 @@ if __name__ == "__main__":
 
                 fig, ax = plt.subplots(2, figsize=(10, 20))
                 # plot a zoom into the residuals to 2 pixels
-                ax[0].plot(radial_distance, residuals * 0.39, 'k.')
+                ax[0].plot(radial_distance, residuals, 'k.')
                 ax[0].set_xlabel('Radial position from CRPIX (pix)')
-                ax[0].set_ylabel('Delta XY (arcsec)')
+                ax[0].set_ylabel('Delta XY (pix)')
 
                 # plot residuals versus brightness
-                ax[1].plot(catalog_matched['G_MAG'], residuals * 0.39, 'k.')
+                ax[1].plot(catalog_matched['G_MAG'], residuals, 'k.')
                 ax[1].set_xlabel('G mag')
-                ax[1].set_ylabel('Delta XY (arcsec)')
+                ax[1].set_ylabel('Delta XY (pix)')
 
                 fig.tight_layout()
                 fig.savefig('{}_wcs_residuals.png'.format(base_name))

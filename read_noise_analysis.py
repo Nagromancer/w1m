@@ -83,8 +83,8 @@ def plot_read_noise(mean_bias, bias_std):
     ax2.set_xlabel('Number of Pixels')
     ax2.set_xscale('log')
     # put ticks at 10^2 and 10^5
-    ax2.set_xticks([1e0, 1e3, 1e6])
-    ax2.set_xticks([1e1, 1e2, 1e4, 1e5], minor=True)
+    ax2.set_xticks([1e1, 1e3, 1e5])
+    ax2.set_xticks([1e0, 1e2, 1e4], minor=True)
     ax2.set_xticklabels([], minor=True)
 
 
@@ -108,7 +108,7 @@ def plot_read_noise(mean_bias, bias_std):
 
 def main():
     plot_images()
-    bias_dir = Path("/Volumes/SanDisk-2TB-SSD/W1m/bias/blue")
+    bias_dir = Path("/Volumes/SanDisk-2TB-SSD/w1m/rn-analysis/blue/low")
     print(bias_dir)
 
     mean_bias, bias_std, directory = read_bias_data(bias_dir)

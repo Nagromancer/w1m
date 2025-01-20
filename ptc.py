@@ -167,35 +167,28 @@ def save_results(average, variance, gain, popt_1, sigma_gain, x_max, path):
         config.write(configfile)
 
 
-def calculate_ptc(path, save_path, n_pixels=1024 * 1280, n=2):
+def calculate_ptc(path, save_path, max_linear, n=2):
     """
     Main function to calculate and save the PTC.
     """
     image_1, image_2, exposures = load_image_data(path)
     average = calculate_average(image_1, image_2)
     variance = calculate_variance(image_1, image_2, n)
-    popt_1, gain = fit_ptc_curve(average, variance)
+    popt_1, gain = fit_ptc_curve(average, variance, max_linear=max_linear)
 
     max_index = np.argmax(variance)
     x_max = average[max_index]
     saturation_value = x_max
 
-    plot_ptc_curve(average, variance, gain, popt_1)
+    plot_ptc_curve(average, variance, gain, popt_1, max_linear=max_linear)
 
-    sigma_gain = calculate_gain_standard_deviation(n_pixels)
+    sigma_gain = calculate_gain_standard_deviation(200 * 200)
     print('The slope for high Gain is:', popt_1)
     print('The standard deviation of the gain is:', sigma_gain, '%')
 
     save_results(average, variance, gain, popt_1, sigma_gain, x_max, save_path)
     return saturation_value, average, variance, exposures
 
-
-# Set paths
-path = '/Volumes/SanDisk-2TB-SSD/w1m/ptc'
-save_path = '/Volumes/SanDisk-2TB-SSD/w1m/'
-
-# Calculate PTC
-saturation_value, average, variance, exposures = calculate_ptc(path, save_path)
 
 def plot_linearity_line(gradient, offset, startx, endx, step, figure, ax1):
     plt.figure(figure)
@@ -299,6 +292,13 @@ def find_linearity_error(ResidualsList):
 
     return LinearityError
 
+# Set paths
+path = '/Volumes/SanDisk-2TB-SSD/w1m/ptc_red'
+save_path = '/Volumes/SanDisk-2TB-SSD/w1m/'
+
+# Calculate PTC
+ptc_limit = 20000
+saturation_value, average, variance, exposures = calculate_ptc(path, save_path, max_linear=ptc_limit)
 
 figure = 2
 startx = saturation_value * 0.05
@@ -315,6 +315,7 @@ ResidualsList_5_95 = CreateResiduals(ExposureTimeList_5_95, CorrectedCtsList_5_9
                                      saturation_value, range_factor).residuals
 
 LinearityError = find_linearity_error(ResidualsList_5_95)
+print('Linearity Error:', LinearityError)
 
 plot_linearity(exposures, ExposureTimeList_5_95, Linearitygradient, LinearityOffset, CorrectedCtsList_5_95,
                ResidualsList_5_95, LinearityError, ResidualsList, average, figure)

@@ -72,7 +72,9 @@ def plot_read_noise(mean_bias, bias_std):
     gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1], wspace=0, hspace=0)
 
     ax1 = plt.subplot(gs[0])
-    hb = ax1.hist2d(mean_bias, bias_std, bins=80, cmap='inferno_r', norm=LogNorm(), range=[[280, 320], [0, 40]])
+    # median of the means
+    med_means = np.median(mean_bias)
+    hb = ax1.hist2d(mean_bias, bias_std, bins=80, cmap='inferno_r', norm=LogNorm(), range=[[int(med_means)-20, int(med_means)+20], [0, 40]])
     ax1.set_xlabel('Mean (ADU)')
     ax1.set_ylabel('Standard Deviation (ADU)')
 
@@ -81,9 +83,9 @@ def plot_read_noise(mean_bias, bias_std):
     ax2.set_xlabel('Number of Pixels')
     ax2.set_xscale('log')
     # put ticks at 10^2 and 10^5
-    # ax2.set_xticks([1e0, 1e3, 1e6])
-    # ax2.set_xticks([1e1, 1e2, 1e4, 1e5, 1e7], minor=True)
-    # ax2.set_xticklabels([], minor=True)
+    ax2.set_xticks([1e0, 1e3, 1e6])
+    ax2.set_xticks([1e1, 1e2, 1e4, 1e5], minor=True)
+    ax2.set_xticklabels([], minor=True)
 
 
     value_median_hist = np.median(bias_std)

@@ -162,8 +162,7 @@ def _wcs_from_table(objects, frame_shape, scale_low, scale_high, estimate_coord=
             print(f"Running: {' '.join(astrometry_args)}")
             subprocess.check_call(astrometry_args, cwd=tempdir,
                                   timeout=timeout)
-            # stdout=subprocess.DEVNULL,
-            # stderr=subprocess.DEVNULL)
+
 
             wcs_ignore_cards = ['SIMPLE', 'BITPIX', 'NAXIS', 'EXTEND', 'DATE', 'IMAGEW', 'IMAGEH']
             solution = {}
@@ -324,7 +323,6 @@ def polynomial_from_header(wcs_header, axis, force3rd):
     """
     # Astrometry.net sometimes doesn't fit distortion terms!
     if axis + '_ORDER' not in wcs_header or force3rd:
-        print(f"Using 3rd-order distortion for {axis} axis")
         return models.Polynomial2D(degree=3)
 
     coeffs = {}
@@ -332,7 +330,6 @@ def polynomial_from_header(wcs_header, axis, force3rd):
         if key.startswith(axis + '_') and key != axis + '_ORDER':
             coeffs['c' + key[2:]] = wcs_header[key]
 
-    print(f"Using {wcs_header[axis + '_ORDER']}-order distortion for {axis} axis")
     return models.Polynomial2D(degree=wcs_header[axis + '_ORDER'], **coeffs)
 
 

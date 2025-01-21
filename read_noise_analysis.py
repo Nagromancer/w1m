@@ -67,7 +67,7 @@ def read_bias_data(directory):
     return mean_bias, bias_std, directory
 
 
-def plot_read_noise(mean_bias, bias_std):
+def plot_read_noise(mean_bias, bias_std, camera):
     fig = plt.figure()
     gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1], wspace=0, hspace=0)
 
@@ -101,18 +101,18 @@ def plot_read_noise(mean_bias, bias_std):
 
     fig.colorbar(ax1.get_children()[0], ax=ax2, label='Number of pixels')
     fig.tight_layout()
-    plt.savefig('read_noise.pdf')
-    print(f'Plot saved as {os.getcwd()}/read_noise.pdf')
+    plt.savefig(f'/Volumes/SanDisk-2TB-SSD/w1m/rn-analysis/read_noise_{camera}.pdf')
     plt.show()
 
 
 def main():
     plot_images()
-    bias_dir = Path("/Volumes/SanDisk-2TB-SSD/w1m/rn-analysis/blue/low")
+    camera = "red"
+    bias_dir = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/rn-analysis/{camera}/high")
     print(bias_dir)
 
     mean_bias, bias_std, directory = read_bias_data(bias_dir)
-    plot_read_noise(mean_bias, bias_std)
+    plot_read_noise(mean_bias, bias_std, camera)
 
 
 if __name__ == "__main__":

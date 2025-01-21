@@ -62,7 +62,7 @@ def plot_dark_hist(dark_path, camera):
     ax.set_yscale('log')
     ax.set_xlabel('Dark current (e$^{-}$px$^{-1}$s$^{-1}$)')
     ax.set_ylabel('Number of pixels')
-    ax.axvline(np.median(data), color='red', linestyle='--', label=f'Median: {np.median(data):.4f}' "e$^{-}$px$^{-1}$s$^{-1}$")
+    ax.axvline(np.median(data), color='red', linestyle='--', label=f'Median: {np.median(data):.4f} ' "e$^{-}$px$^{-1}$s$^{-1}$")
     ax.legend(loc='upper right')
     plt.savefig(f'/Volumes/SanDisk-2TB-SSD/w1m/dc_analysis/dark/dark-current-histogram-{camera}.pdf', bbox_inches='tight')
     plt.show()
@@ -73,9 +73,6 @@ def main():
     camera = "red"
     master_dark_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dc_analysis/dark/master-dark-{camera}.fits")
     plot_dark_hist(master_dark_path, camera)
-
-
-
 
 
 if __name__ == "__main__":

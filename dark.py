@@ -42,8 +42,7 @@ stacked_darks = np.zeros(shape, dtype=np.float32)
 for i, file in enumerate(tqdm(dark_files)):
     stacked_darks[:, :, i] = fitsio.read(file)[region[1][0]:region[1][1], region[0][0]:region[0][1]]
 
-# perform a trimmed mean to remove outliers - ignore highest and lowest values
-stacked_darks = np.mean(np.sort(stacked_darks, axis=2)[:, :, 1:-1], axis=2)
+stacked_darks = np.median(np.sort(stacked_darks, axis=2)[:, :, 1:-1], axis=2)
 print(f"Median of stacked darks: {np.median(stacked_darks):.4f}")
 print(f"Median of master bias (with bias): {np.median(master_bias):.4f}")
 master_dark = stacked_darks.astype(np.float32) - master_bias
@@ -52,7 +51,7 @@ print(f"Median of master dark (without bias): {np.median(master_dark):.4f}")
 # read exposure time from header
 t = float(fitsio.read_header(dark_files[0])['EXPTIME'])
 print(f"Exposure time: {t} s")
-print(f"Median of master dark: {np.mean(master_dark)/t:.4f} ADU/pixel/s")
+print(f"Median of master dark: {np.median(master_dark)/t:.4f} ADU/pixel/s")
 
 # create new header containing exposure time
 new_header = fitsio.FITSHDR()

@@ -59,12 +59,15 @@ for date in $dates; do
   for cam in blue red; do
     python $bin/flats.py $base_dir/$cam/flat $home_dir/calibration_frames/master-bias-$cam.fits $home_dir/calibration_frames/master-dark-$cam.fits $base_dir/$cam/flat
     for target in $base_dir/$cam/*; do
+      if [[ -d $target/rejected ]]; then
+        echo "Skipping $target"
+        continue
+      fi # skip if the target has already been processed
         if [[ -d $target ]]; then
           if [[ $target == *"flat"* ]]; then continue; fi  # don't treat the flat directory as a target
 
           # make calibrated directory and calibrate images
           mkdir -p $target/calibrated
-          mkdir -p $target/rejected
           python $bin/calibrate.py $target/raw $home_dir/calibration_frames/master-bias-$cam.fits $home_dir/calibration_frames/master-dark-$cam.fits $base_dir/$cam/flat/master-flat-$cam.fits $target/calibrated
 
           # check to see if reference catalogue exists for this target
@@ -83,6 +86,7 @@ for date in $dates; do
           python $bin/measure_hfd.py $target/calibrated $cam
 
           # reject bad images
+          mkdir -p $target/rejected
           python $bin/remove_bad_files.py $target/calibrated $target/rejected
         fi
     done

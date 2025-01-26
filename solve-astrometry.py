@@ -503,8 +503,8 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
         return None, None, None, None
 
     # Add zero point to header
-    output.header['ZP_10r_ADU'] = zp_mean
-    output.header['ZPSTD_10r'] = zp_stddev
+    output.header.add_record(dict(name='ZP_10r', value=zp_mean, comment='10 pix radius ZP (ADU/s)'))
+    output.header.add_record(dict(name='ZPSTD_10r', value=zp_stddev, comment='10 pix radius ZP std-dev'))
 
     # output the updated solved fits image
     fits.HDUList(hdu_list).writeto(output_path, overwrite=True)

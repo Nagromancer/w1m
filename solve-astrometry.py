@@ -166,16 +166,20 @@ def _wcs_from_table(objects, frame_shape, scale_low, scale_high, estimate_coord=
 
             wcs_ignore_cards = ['SIMPLE', 'BITPIX', 'NAXIS', 'EXTEND', 'DATE', 'IMAGEW', 'IMAGEH']
             solution = {}
-            with open(wcs_path) as wcs_file:
-                header = wcs_file.read()
-                # ds9 will only accept newline-delimited keys
-                # so we need to reformat the 80-character cards
-                for line in [header[i:i + 80] for i in range(0, len(header), 80)]:
-                    key = line[0:8].strip()
-                    if '=' in line and key not in wcs_ignore_cards:
-                        card = fits.Card.fromstring(line)
-                        solution[card.keyword] = card.value
-            return solution
+            try:
+                with open(wcs_path) as wcs_file:
+                    header = wcs_file.read()
+                    # ds9 will only accept newline-delimited keys
+                    # so we need to reformat the 80-character cards
+                    for line in [header[i:i + 80] for i in range(0, len(header), 80)]:
+                        key = line[0:8].strip()
+                        if '=' in line and key not in wcs_ignore_cards:
+                            card = fits.Card.fromstring(line)
+                            solution[card.keyword] = card.value
+                return solution
+            except FileNotFoundError:
+                print('Failed to find WCS solution')
+                return {}
 
     except Exception:
         print('Failed to update wcs with error:')
@@ -398,7 +402,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
                                       unit=(u.deg, u.deg))
         except KeyError:
             print('No commanded RA position, skipping!')
-            return None, None, None, None
+            return None, None, None, None, None
 
     estimate_coord_radius = 1 * u.deg
 
@@ -413,7 +417,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
 
     if not wcs_header:
         print('Failed to find initial WCS solution - aborting')
-        return None, None, None, None
+        return None, None, None, None, None
 
     # if it fails, skip the image and stick it in a bad folder
     try:
@@ -500,11 +504,11 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
     except Exception:
         print("{} failed WCS, skipping...\n".format(input_path))
         traceback.print_exc(file=sys.stdout)
-        return None, None, None, None
+        return None, None, None, None, None
 
     # Add zero point to header
-    output.header.add_record(dict(name='ZP_10r', value=zp_mean, comment='10 pix radius ZP (ADU/s)'))
-    output.header.add_record(dict(name='ZPSTD_10r', value=zp_stddev, comment='10 pix radius ZP std-dev'))
+    output.header['ZP_10r'] = zp_mean
+    output.header['ZPSTD_10r'] = zp_stddev
 
     # output the updated solved fits image
     fits.HDUList(hdu_list).writeto(output_path, overwrite=True)
@@ -530,6 +534,13 @@ if __name__ == "__main__":
         base_name = input_image.split(".fits")[0]
         if os.path.exists(input_image) and os.path.exists(args.outdir):
             header = fits.getheader(input_image)
+
+            # check for existing solved images by looking for A_0_0
+            if 'A_0_0' in header:
+                print(f"{input_image} already solved, skipping...")
+                wcs_store.append(WCS(header))
+                continue
+
             x_width = header['NAXIS1']
             y_width = header['NAXIS2']
             final_wcs, objects_matched, catalog_matched, residuals, initial_wcs = prepare_frame(input_image,

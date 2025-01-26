@@ -147,7 +147,7 @@ def _wcs_from_table(objects, frame_shape, scale_low, scale_high, estimate_coord=
                 '/opt/homebrew/bin/solve-field',
                 '--no-plots',
                 '--scale-units', 'arcsecperpix',
-                '-t 3', '--no-remove-lines',  # '--no-fits2fits',
+                '-t 3', '-l 3', '--no-remove-lines',  # '--no-fits2fits',
                 '--scale-high', str(scale_high), '--scale-low', str(scale_low),
                 '--width', str(frame_shape[1]), '--height', str(frame_shape[0]),
                 xyls_path]

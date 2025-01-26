@@ -27,6 +27,10 @@ if len(bias_files) == 0:
     exit(1)
 bias_files.sort()
 colour = "blue" if "BLUE" in str(bias_files[0]) else "red" if "RED" in str(bias_files[0]) else raiseExceptions
+out_path = out_dir / f'master-bias-{colour}.fits'
+if out_path.exists():
+    print(f"Master bias image already exists at {out_path}.")
+    exit(1)
 
 # get shape from IMAG-RGN element of header e.g. [21:2068, 31:2048] and convert from 1-indexed to 0-indexed
 region = np.array([[int(x.replace("[", "").replace("]", "")) - 1 for x in y] for y in
@@ -45,5 +49,5 @@ master_bias = stacked_biases.astype(np.float32)
 print(f"Master bias resolution: {master_bias.shape[0]} x {master_bias.shape[1]}")
 print(f"Median of master bias: {np.median(master_bias):.4f}")
 
-fitsio.write(out_dir / f'master-bias-{colour}.fits', master_bias, clobber=True)
-print(f"Master bias image saved to {out_dir / f'master-bias-{colour}.fits'}")
+fitsio.write(out_path, master_bias, clobber=True)
+print(f"Master bias image saved to {out_path}")

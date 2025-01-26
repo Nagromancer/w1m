@@ -30,6 +30,10 @@ dark_files.sort()
 print("Fetching master bias image...")
 colour = "blue" if "BLUE" in str(dark_files[0]) else "red" if "RED" in str(dark_files[0]) else raiseExceptions
 
+out_path = out_dir / f'master-dark-{colour}.fits'
+if out_path.exists():
+    print(f"Master dark image already exists at {out_path}.")
+
 master_bias = fitsio.read(bias_path)
 
 # get shape from IMAG-RGN element of header e.g. [21:2068, 31:2048] and convert from 1-indexed to 0-indexed
@@ -57,5 +61,5 @@ print(f"Median of master dark: {np.median(master_dark)/t:.4f} ADU/pixel/s")
 new_header = fitsio.FITSHDR()
 new_header.add_record(dict(name='EXPTIME', value=t, comment='Exposure time (s)'))
 
-fitsio.write(out_dir / f'master-dark-{colour}.fits', master_dark, clobber=True, header=new_header)
-print(f"Master dark image saved to {out_dir / f'master-dark-{colour}.fits'}")
+fitsio.write(out_dir / out_path, master_dark, clobber=True, header=new_header)
+print(f"Master dark image saved to {out_path}")

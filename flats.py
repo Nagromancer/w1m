@@ -37,6 +37,10 @@ if not dark_path.exists():
     exit(1)
 flat_files.sort()
 colour = "blue" if "BLUE" in str(flat_files[0]) else "red" if "RED" in str(flat_files[0]) else raiseExceptions
+out_path = out_dir / f'master-flat-{colour}.fits'
+if out_path.exists():
+    print(f"Master flat-field image already exists at {out_path}.")
+    exit(1)
 
 master_bias = fitsio.read(bias_path)
 master_dark = fitsio.read(dark_path)
@@ -65,5 +69,5 @@ stacked_flats = np.median(flat_cube, axis=2)
 print(f"Stacked {count} flat-field images.")
 print(f"Master flat resolution: {stacked_flats.shape[0]} x {stacked_flats.shape[1]}")
 
-fitsio.write(out_dir / f'master-flat-{colour}.fits', stacked_flats, clobber=True)
-print(f"Master flat-field image saved to {out_dir / f'master-flat-{colour}.fits'}")
+fitsio.write(out_path, stacked_flats, clobber=True)
+print(f"Master flat-field image saved to {out_path}")

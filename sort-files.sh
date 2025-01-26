@@ -42,16 +42,12 @@ for date in $dates; do
 
     # target name is given by the first part of the file name - everything before the second to last dash
     # create a directory for each target in the red and blue directories
-    for file in $base_dir/red/*.fits; do
-        target=$(echo $file | awk -F "-" '{print $1"-"$2"-"$3}')
-        mkdir -p $target/raw
-        mv $file $target/raw
-    done
-
-    for file in $base_dir/blue/*.fits; do
-        target=$(echo $file | awk -F "-" '{print $1"-"$2"-"$3}')
-        mkdir -p $target/raw
-        mv $file $target/raw
+    for cam in blue red; do
+      for file in $base_dir/$cam/*; do
+          target=$(echo $file | awk -F "-" '{print $1"-"$2"-"$3}')
+          mkdir -p $target/raw
+          mv $file $target/raw
+      done
     done
   fi
 
@@ -68,6 +64,7 @@ for date in $dates; do
 
           # make calibrated directory and calibrate images
           mkdir -p $target/calibrated
+          mkdir -p $target/rejected
           python $bin/calibrate.py $target/raw $home_dir/calibration_frames/master-bias-$cam.fits $home_dir/calibration_frames/master-dark-$cam.fits $base_dir/$cam/flat/master-flat-$cam.fits $target/calibrated
 
           # check to see if reference catalogue exists for this target
@@ -78,6 +75,15 @@ for date in $dates; do
             mkdir -p $home_dir/reference_catalogues/$target_only
             python $bin/fetch_reference_catalogue.py 0.27 0.27 "$ref_cat" --img_path $target/raw --target "$target_only"
           fi
+
+          # solve astrometry
+          python $bin/solve-astrometry.py "$ref_cat" $target/calibrated/*.fits
+
+          # measure HFD
+          python $bin/measure_hfd.py $target/calibrated $cam
+
+          # reject bad images
+          python $bin/remove_bad_files.py $target/calibrated $target/rejected
         fi
     done
   done

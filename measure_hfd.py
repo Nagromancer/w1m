@@ -26,8 +26,7 @@ def measure_hfd(files, camera, plot=True, sep_threshold=1.3, verbose=False):
         try:
             header = fitsio.read_header(file)
             if 'HFD' in header:
-                # continue
-                pass
+                continue
             data = fitsio.read(file)
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
@@ -132,9 +131,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Analyse background-subtracted images')
     parser.add_argument('input_dir', type=str, help='Directory containing input images.')
-    parser.add_argument('analysis_dir', type=str, help='Directory for the analysis files.')
     parser.add_argument('camera', type=str, choices=['red', 'blue'], help='Camera colour.')
-    parser.add_argument('--overwrite', action='store_true', help='Overwrite existing analysis files.')
     args = parser.parse_args()
 
     input_dir = Path(args.input_dir)

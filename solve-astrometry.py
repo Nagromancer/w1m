@@ -536,7 +536,7 @@ if __name__ == "__main__":
             header = fits.getheader(input_image)
 
             # check for existing solved images by looking for A_0_0
-            if 'A_0_0' in header:
+            if 'A_0_0' in header and ('ZP_10r' in header or 'ZP_10R' in header):
                 print(f"{input_image} already solved, skipping...")
                 wcs_store.append(WCS(header))
                 continue

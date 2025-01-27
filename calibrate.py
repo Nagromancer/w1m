@@ -28,7 +28,7 @@ out_dir_files = out_dir.files()
 out_dir_files = [file for file in out_dir_files if 'calibrated' in file.name]
 if len(out_dir_files) > 0 and not args.overwrite:
     print(f"{len(out_dir_files)} calibrated images already exist in {out_dir}. Try --overwrite.")
-    exit(42)
+    exit(0)
 
 
 science_files = raw_dir.files()

@@ -169,9 +169,31 @@ def plot_alt_az(alts, azs, times, obs_site_ephem, obs_site, output_path):
     ax.set_ylim(90, 0)
     ax.set_thetagrids([0, 45, 90, 135, 180, 225, 270, 315], labels=['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'])
     ax.set_rgrids([0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
-                  labels=[r'0°', '', r'20°', '', r'40°', '', r'60°', '', r'80°', ''])
+                  labels=[r'0°', '', r'20°', '', r'40°', '', r'60°', '', r'80°', ''], alpha=0.5)
     ax.plot(azs * np.pi / 180, alts, '--', label='Telescope')
     ax.plot(moon_az * np.pi / 180, moon_alt, '--', color="gray", label=f'Moon ({illumination:.0f}\%)')
+
+    # plot the positions every hour and label them. Interpolate between the points
+    for i in range(0, len(azs) - 1):
+        if times[i].hour != times[i + 1].hour:
+            az_interp = np.linspace(azs[i], azs[i + 1], 10)
+            alt_interp = np.interp(az_interp, [azs[i], azs[i + 1]], [alts[i], alts[i + 1]])
+            ax.plot(az_interp * np.pi / 180, alt_interp, 'k--')
+            # add one minute to the text so it shows as on the hour
+            ax.plot(az_interp[-1] * np.pi / 180, alt_interp[-1], 'ko', markersize=2)
+            ax.text(az_interp[-1] * np.pi / 180, alt_interp[-1], f"{times[i+1].strftime('%H')}h", fontsize=20)
+
+    # do the same for the moon
+    for i in range(0, len(moon_az) - 1):
+        if times[i].hour != times[i + 1].hour:
+            az_interp = np.linspace(moon_az[i], moon_az[i + 1], 10)
+            alt_interp = np.interp(az_interp, [moon_az[i], moon_az[i + 1]], [moon_alt[i], moon_alt[i + 1]])
+            ax.plot(az_interp * np.pi / 180, alt_interp, 'k--')
+            # add one minute to the text so it shows as on the hour
+            if alt_interp[-1] > 0:
+                ax.plot(az_interp[-1] * np.pi / 180, alt_interp[-1], 'ko', markersize=2)
+                ax.text(az_interp[-1] * np.pi / 180, alt_interp[-1], f"{times[i+1].strftime('%H')}h", fontsize=20)
+
     ax.legend(loc="upper left", bbox_to_anchor=(-0.1, 1.1))
     plt.tight_layout()
     plt.savefig(output_path / 'alt_az.png')

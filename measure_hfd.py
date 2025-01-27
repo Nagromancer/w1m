@@ -22,6 +22,7 @@ def measure_hfd(files, camera, plot=True, sep_threshold=1.3, verbose=False):
 
     gain = red_gain if camera == 'red' else blue_gain
 
+    print(f"Measuring HFD for {len(files)} files.")
     for file in tqdm.tqdm(files, file=sys.stdout):
         try:
             header = fitsio.read_header(file)
@@ -121,9 +122,7 @@ def measure_hfd(files, camera, plot=True, sep_threshold=1.3, verbose=False):
             failed_writes += 1
             continue
 
-    print(f"Failed extractions: {failed_extractions}")
-    print(f"Failed reads: {failed_reads}")
-    print(f"Failed writes: {failed_writes}")
+    print(f"Failed extractions: {failed_extractions}. Failed reads: {failed_reads}. Failed writes: {failed_writes}")
 
 
 def main():

@@ -11,6 +11,7 @@ import argparse
 
 def check_images(files, output_path, min_zp=23, max_hfd=4):
     count = 0
+    print(f"Checking {len(files)} files for bad images.")
     for file in tqdm.tqdm(files, file=sys.stdout):
         header = fitsio.read_header(file)
 
@@ -18,7 +19,7 @@ def check_images(files, output_path, min_zp=23, max_hfd=4):
         if 'A_0_0' in header and 'HFD' in header and 'ZP_10R' in header and header['HFD'] < max_hfd and header['ZP_10R'] > min_zp:
             continue
 
-        print(f"Moving {file} to bad files directory.")
+        # print(f"Moving {file} to bad files directory.")
         os.rename(file, output_path / file.name)
         count += 1
     print(f"Moved {count} files to bad files directory ({count / len(files) * 100:.2f}%) to {output_path}")

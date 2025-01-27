@@ -230,6 +230,7 @@ def fetch_gaia(target, ra_center, dec_center, box_width, box_height, img_path, r
 
 
 if __name__ == "__main__":
+    print(f"Generating reference catalog from Gaia DR3")
     parser = ap.ArgumentParser()
     parser.add_argument('box_width',
                         type=float,

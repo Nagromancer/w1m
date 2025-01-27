@@ -30,7 +30,7 @@ def get_camera_gain(files):
 
 
 def read_headers(input_dir_1, input_dir_2):
-    files = input_dir_1.files() + input_dir_2.files()
+    files = input_dir_1.files("*.fits") + input_dir_2.files("*.fits")
     files.sort(key=lambda x: x.basename())
     headers = [fits.getheader(file) for file in files]
     return headers
@@ -59,7 +59,7 @@ def extract_hfd(headers):
         try:
             hfds.append(header['HFD'])
         except KeyError:
-            hfds.append(None)
+            hfds.append(np.nan)
     return np.array(hfds)
 
 
@@ -92,13 +92,13 @@ def extract_zp(headers):
         try:
             zps.append(header['ZP_10R'])
         except KeyError:
-            zps.append(None)
+            zps.append(np.nan)
     return np.array(zps)
 
 
-def plot_zp_vs_time(times, zps, gain, output_path):
+def plot_zp_vs_time(times, zps, output_path):
     fig, ax = plt.subplots()
-    ax.plot(times, zps + 2.5 * np.log10(gain))
+    ax.plot(times, zps)
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('Mean ZP mag (1 e$^-$s$^{-1}$)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
@@ -131,9 +131,9 @@ def plot_hfd_vs_time(times, hfds, output_path):
     plt.close()
 
 
-def plot_zp_vs_hfd(zps, hfds, gain, output_path):
+def plot_zp_vs_hfd(zps, hfds, output_path):
     fig, ax = plt.subplots()
-    ax.plot(hfds, zps + 2.5 * np.log10(gain), 'o')
+    ax.plot(hfds, zps, 'o')
     ax.set_xlabel('HFD (arcsec)')
     ax.set_ylabel('Mean ZP mag (1 e$^-$s$^{-1}$)')
     ax.grid()
@@ -242,7 +242,7 @@ def main():
     alt, az = extract_alt_az(headers)
     gain = get_camera_gain(input_dir.files())
     sky_backgrounds = extract_sky_background(headers, gain)
-    zps = extract_zp(headers)
+    zps = extract_zp(headers) + 2.5 * np.log10(gain)
 
     obs_site_ephem = ephem.Observer()
     obs_site_ephem.lat = headers[0]['SITELAT']
@@ -258,9 +258,9 @@ def main():
     plot_hfd_vs_time(times, hfds, output_path)
     plot_alt_az(alt, az, times, obs_site_ephem, obs_site, output_path)
     plot_sky_background_vs_time(times, sky_backgrounds, output_path)
-    plot_zp_vs_time(times, zps, gain, output_path)
+    plot_zp_vs_time(times, zps, output_path)
     plot_airmass_vs_time(times, alt, output_path)
-    plot_zp_vs_hfd(zps, hfds, gain, output_path)
+    plot_zp_vs_hfd(zps, hfds, output_path)
 
 
 if __name__ == '__main__':

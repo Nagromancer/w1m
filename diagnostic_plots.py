@@ -199,6 +199,12 @@ def plot_tracking_error(wcs, times, output_path):
     x = pixel_coords[:, 0] * plate_scale
     y = pixel_coords[:, 1] * plate_scale
 
+    # reject more than 50 arcsec from start in any direction
+    y = y[abs(x < 50)]
+    x = x[abs(x < 50)]
+    x = x[abs(y < 50)]
+    y = y[abs(y < 50)]
+
     fig, ax = plt.subplots()
     delta_times = np.array([(t - times[0]).total_seconds() for t in times]) / 60
     ax.scatter(x, y, c=delta_times)

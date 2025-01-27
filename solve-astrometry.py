@@ -9,6 +9,7 @@ import argparse as ap
 import sep
 import numpy as np
 import astropy.units as u
+import tqdm
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.modeling import models, fitting
@@ -159,9 +160,11 @@ def _wcs_from_table(objects, frame_shape, scale_low, scale_high, estimate_coord=
                     '--radius', str(estimate_coord_radius.to_value(u.deg)),
                 ]
 
-            print(f"Running: {' '.join(astrometry_args)}")
+            # print(f"Running: {' '.join(astrometry_args)}")
             subprocess.check_call(astrometry_args, cwd=tempdir,
-                                  timeout=timeout)
+                                  timeout=timeout,
+                                  stdout=subprocess.DEVNULL,  # Suppresses standard output
+                                  stderr=subprocess.DEVNULL)  # Suppresses standard error
 
 
             wcs_ignore_cards = ['SIMPLE', 'BITPIX', 'NAXIS', 'EXTEND', 'DATE', 'IMAGEW', 'IMAGEH']
@@ -381,8 +384,6 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
 
     # save the image with the same format as the input
     output = fits.PrimaryHDU(frame_data.astype(np.float32), header=frame.header)
-    output.header['BACK-LVL'] = frame_bg.globalback
-    output.header['BACK-RMS'] = frame_bg.globalrms
 
     area_min = 10
     area_max = 400
@@ -409,7 +410,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
     # Detect all objects in the image and attempt a full-frame solution
     objects = _detect_objects_sep(frame_data_corr, frame_bg.globalrms, area_min,
                                   area_max, detection_sigma)
-    print(f"Found {len(objects)} objects in {input_path}")
+    # print(f"Found {len(objects)} objects in {input_path}")
 
     wcs_header = _wcs_from_table(objects, frame_data.shape, scale_min,
                                  scale_max, estimate_coord, estimate_coord_radius)
@@ -439,7 +440,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
             matched_cat = catalog_cm[match_idx]
 
             # add check here for matches, try to catch bad catalog
-            print("Number of matches (pre-distance cut-off):  {}".format(len(match_idx)))
+            # print("Number of matches (pre-distance cut-off):  {}".format(len(match_idx)))
 
             wcs_x, wcs_y = WCS(wcs_header).all_world2pix(matched_cat['RA'],
                                                          matched_cat['DEC'], 1)
@@ -459,8 +460,8 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
                 zp_delta_mag < zp_mean + zp_clip_sigma * zp_stddev])
 
             # add check here for matches, try to catch bad catalog
-            print("Number of matches (post-distance cut-off): {}".format(len(delta_xy[zp_filter])))
-            print(f"Median delta_xy: {np.median(delta_xy[zp_filter]):.4f} pix")
+            # print("Number of matches (post-distance cut-off): {}".format(len(delta_xy[zp_filter])))
+            # print(f"Median delta_xy: {np.median(delta_xy[zp_filter]):.4f} pix")
 
             before_match, _ = check_wcs_corners(wcs_header, objects[zp_filter],
                                                 matched_cat[zp_filter], frame_data.shape)
@@ -499,7 +500,6 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
         zp_calc_objects['FLUXERR10'] = fluxerr10
         zp_delta_mag = matched_cat[zp_filter]['G_MAG'] + 2.5 * np.log10(zp_calc_objects['FLUX10'] / frame_exptime)
         zp_mean, _, zp_stddev = sigma_clipped_stats(zp_delta_mag, sigma=zp_clip_sigma)
-        print(f"Mean ZP (ADU) (10 pixel radius) = {zp_mean:.4f} ± {zp_stddev:.4f}")
 
     except Exception:
         print("{} failed WCS, skipping...\n".format(input_path))
@@ -509,6 +509,13 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
     # Add zero point to header
     output.header['ZP_10r'] = zp_mean
     output.header['ZPSTD_10r'] = zp_stddev
+
+    # Add background level and RMS to header
+    output.header['BACK-LVL'] = frame_bg.globalback
+    output.header['BACK-RMS'] = frame_bg.globalrms
+
+    # print(f"Mean ZP (ADU) (10 pixel radius) = {zp_mean:.4f} ± {zp_stddev:.4f}, "
+    #       f"Background Level = {frame_bg.globalback:.4f} ± {frame_bg.globalrms:.4f}")
 
     # output the updated solved fits image
     fits.HDUList(hdu_list).writeto(output_path, overwrite=True)
@@ -530,14 +537,15 @@ if __name__ == "__main__":
     # store the WCS headers for the final check if objects appear on chip
     # at least once during the list of given reference images
     wcs_store = []
-    for input_image in args.input_images:
+    print(f"Solving astrometry for {len(args.input_images)} images...")
+    for input_image in tqdm.tqdm(args.input_images):
         base_name = input_image.split(".fits")[0]
         if os.path.exists(input_image) and os.path.exists(args.outdir):
             header = fits.getheader(input_image)
 
             # check for existing solved images by looking for A_0_0
             if 'A_0_0' in header and ('ZP_10r' in header or 'ZP_10R' in header):
-                print(f"{input_image} already solved, skipping...")
+                # print(f"{input_image} already solved, skipping...")
                 wcs_store.append(WCS(header))
                 continue
 

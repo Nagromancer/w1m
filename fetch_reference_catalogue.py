@@ -136,7 +136,7 @@ def fetch_gaia(target, ra_center, dec_center, box_width, box_height, img_path, r
     # Apply proper motion offsets
     # read header from example image
     if img_path is not None:
-        img_path = sorted(Path(img_path).files())[0]
+        img_path = sorted(Path(img_path).files("*.fits"))[0]
         header = fitsio.read_header(img_path)
         reference_epoch = header['DATE-OBS']
 

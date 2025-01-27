@@ -257,8 +257,8 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target):
     pixel_coords = np.array(pixel_coords)
     pixel_coords -= pixel_coords[0]
 
-    x = pixel_coords[:, 0] * plate_scale
-    y = pixel_coords[:, 1] * plate_scale
+    x = pixel_coords[:, 0]
+    y = pixel_coords[:, 1]
 
     # reject more than 50 arcsec from start in any direction. making sure x, y, t are same length
     x, y, times = zip(*[(x_, y_, t) for x_, y_, t in zip(x, y, times) if np.sqrt(x_ ** 2 + y_ ** 2) < 50])
@@ -266,8 +266,8 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target):
     fig, ax = plt.subplots()
     delta_times = np.array([(t - times[0]).total_seconds() for t in times]) / 60
     ax.scatter(x, y, c=delta_times)
-    ax.set_xlabel('X offset (arcsec)')
-    ax.set_ylabel('Y offset (arcsec)')
+    ax.set_xlabel('X offset (pixel)')
+    ax.set_ylabel('Y offset (pixel)')
     cbar = plt.colorbar(ax.scatter(x, y, c=delta_times))
     cbar.set_label('Time (minutes)')
     ax.set_title(f"{target} - {date} ({camera.capitalize()})")
@@ -281,7 +281,7 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target):
     ax.plot(times, x, label='X', color=c1)
     ax.plot(times, y, label='Y', color=c2)
     ax.legend()
-    ax.set_ylabel('Offset (arcsec)')
+    ax.set_ylabel('Offset (pixel)')
     ax.set_xlabel('Time (UTC)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.grid()

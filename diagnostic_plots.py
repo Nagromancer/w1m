@@ -236,11 +236,15 @@ def main():
     output_path = Path(args.output_dir)
 
     headers = read_headers(input_dir, reject_dir)
+    if len(headers) == 0:
+        print("No headers found in input directories.")
+        return
+
     wcs = read_wcs(headers)
     times = extract_times(headers)
     hfds = extract_hfd(headers)
     alt, az = extract_alt_az(headers)
-    gain = get_camera_gain(input_dir.files())
+    gain = get_camera_gain(input_dir.files('*.fits') + reject_dir.files('*.fits'))
     sky_backgrounds = extract_sky_background(headers, gain)
     zps = extract_zp(headers) + 2.5 * np.log10(gain)
 

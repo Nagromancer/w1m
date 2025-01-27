@@ -71,8 +71,8 @@ def extract_alt_az(headers):
             alts.append(header['ALTITUDE'])
             azs.append(header['AZIMUTH'])
         except KeyError:
-            alts.append(None)
-            azs.append(None)
+            alts.append(np.nan)
+            azs.append(np.nan)
     return np.array(alts), np.array(azs)
 
 
@@ -82,7 +82,7 @@ def extract_sky_background(headers, gain):
         try:
             sky_backgrounds.append(header['BACK-LVL'] / header['EXPTIME'] * gain)
         except KeyError:
-            sky_backgrounds.append(None)
+            sky_backgrounds.append(np.nan)
     return np.array(sky_backgrounds)
 
 
@@ -94,6 +94,37 @@ def extract_zp(headers):
         except KeyError:
             zps.append(np.nan)
     return np.array(zps)
+
+
+def extract_wind_speed(headers):
+    wind_speeds = []
+    median_winds = []
+    wind_gusts = []
+    for header in headers:
+        try:
+            wind_speeds.append(header['WINDSPD'])
+            median_winds.append(header['MEDWIND'])
+            wind_gusts.append(header['WINDGUST'])
+        except KeyError:
+            wind_speeds.append(np.nan)
+            median_winds.append(np.nan)
+            wind_gusts.append(np.nan)
+
+    return np.array(wind_speeds), np.array(median_winds), np.array(wind_gusts)
+
+
+def plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output_path):
+    fig, ax = plt.subplots()
+    ax.plot(times, wind_speeds, label='Wind speed')
+    ax.plot(times, median_winds, label='Median wind speed')
+    ax.plot(times, wind_gusts, label='Wind gust')
+    ax.set_xlabel('Time (UTC)')
+    ax.set_ylabel('Wind speed (kph)')
+    ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
+    ax.legend()
+    ax.grid()
+    plt.savefig(output_path / 'wind_speed_vs_time.png')
+    plt.close()
 
 
 def plot_zp_vs_time(times, zps, output_path):
@@ -272,6 +303,7 @@ def main():
     gain = get_camera_gain(input_dir.files('*.fits') + reject_dir.files('*.fits'))
     sky_backgrounds = extract_sky_background(headers, gain)
     zps = extract_zp(headers) + 2.5 * np.log10(gain)
+    wind_speeds, median_winds, wind_gusts = extract_wind_speed(headers)
 
     obs_site_ephem = ephem.Observer()
     obs_site_ephem.lat = headers[0]['SITELAT']
@@ -290,6 +322,7 @@ def main():
     plot_zp_vs_time(times, zps, output_path)
     plot_airmass_vs_time(times, alt, output_path)
     plot_zp_vs_hfd(zps, hfds, output_path)
+    plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output_path)
 
 
 if __name__ == '__main__':

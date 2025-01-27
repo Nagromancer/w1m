@@ -17,6 +17,7 @@ plt.rcParams["font.family"] = "Times"
 plt.rcParams["font.size"] = 32
 plt.rcParams['legend.fontsize'] = 25
 plt.rcParams['text.usetex'] = True
+plt.rcParams['axes.titlesize'] = 32
 
 
 def get_camera_gain(files):
@@ -113,13 +114,14 @@ def extract_wind_speed(headers):
     return np.array(wind_speeds), np.array(median_winds), np.array(wind_gusts)
 
 
-def plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output_path):
+def plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output_path, date, target):
     fig, ax = plt.subplots()
     ax.plot(times, wind_speeds, label='Wind speed')
     ax.plot(times, median_winds, label='Median wind speed')
     ax.plot(times, wind_gusts, label='Wind gust')
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('Wind speed (kph)')
+    ax.set_title(f"{target} - {date}")
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.legend()
     ax.grid()
@@ -127,18 +129,19 @@ def plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output
     plt.close()
 
 
-def plot_zp_vs_time(times, zps, output_path, camera):
+def plot_zp_vs_time(times, zps, output_path, camera, date, target):
     fig, ax = plt.subplots()
     ax.plot(times, zps, color=camera)
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('Mean ZP mag (1 e$^-$s$^{-1}$)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
+    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
     ax.grid()
     plt.savefig(output_path / 'zp_vs_time.png')
     plt.close()
 
 
-def plot_airmass_vs_time(times, alts, output_path):
+def plot_airmass_vs_time(times, alts, output_path, date, target):
     fig, ax = plt.subplots()
     zenith_angle = 90 - alts
     airmass = 1 / np.cos(np.radians(zenith_angle))
@@ -146,44 +149,48 @@ def plot_airmass_vs_time(times, alts, output_path):
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('Airmass')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
+    ax.set_title(f"{target} - {date}")
     ax.grid()
     plt.savefig(output_path / 'airmass_vs_time.png')
     plt.close()
 
 
-def plot_hfd_vs_time(times, hfds, output_path, camera):
+def plot_hfd_vs_time(times, hfds, output_path, camera, date, target):
     fig, ax = plt.subplots()
     ax.plot(times, hfds, color=camera)
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('HFD (arcsec)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.grid()
+    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'hfd_vs_time.png')
     plt.close()
 
 
-def plot_zp_vs_hfd(zps, hfds, output_path, camera):
+def plot_zp_vs_hfd(zps, hfds, output_path, camera, date, target):
     fig, ax = plt.subplots()
     ax.plot(hfds, zps, 'o', color=camera)
     ax.set_xlabel('HFD (arcsec)')
     ax.set_ylabel('Mean ZP mag (1 e$^-$s$^{-1}$)')
     ax.grid()
+    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'zp_vs_hfd.png')
     plt.close()
 
 
-def plot_sky_background_vs_time(times, sky_backgrounds, output_path, camera):
+def plot_sky_background_vs_time(times, sky_backgrounds, output_path, camera, date, target):
     fig, ax = plt.subplots()
     ax.plot(times, sky_backgrounds, color=camera)
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('Sky background (e$^-$px$^{-1}$s$^{-1}$)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.grid()
+    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'sky_background_vs_time.png')
     plt.close()
 
 
-def plot_alt_az(alts, azs, times, obs_site_ephem, obs_site, output_path):
+def plot_alt_az(alts, azs, times, obs_site_ephem, obs_site, output_path, date, target):
     moon = ephem.Moon()
     moon.compute(obs_site_ephem)
     illumination = moon.moon_phase * 100
@@ -225,13 +232,14 @@ def plot_alt_az(alts, azs, times, obs_site_ephem, obs_site, output_path):
                 ax.plot(az_interp[-1] * np.pi / 180, alt_interp[-1], 'ko', markersize=2)
                 ax.text(az_interp[-1] * np.pi / 180, alt_interp[-1], f"{times[i+1].strftime('%H')}h", fontsize=20)
 
-    ax.legend(loc="upper left", bbox_to_anchor=(-0.1, 1.1))
+    ax.legend(loc="upper left", bbox_to_anchor=(-0.1, 1.05))
+    ax.set_title(f"{target} - {date}")
     plt.tight_layout()
     plt.savefig(output_path / 'alt_az.png')
     plt.close()
 
 
-def plot_tracking_error(wcs, times, output_path, camera):
+def plot_tracking_error(wcs, times, output_path, camera, date, target):
     # check to see if wcs list only contains None
     if all([w is None for w in wcs]):
         return
@@ -262,6 +270,7 @@ def plot_tracking_error(wcs, times, output_path, camera):
     ax.set_ylabel('Y offset (arcsec)')
     cbar = plt.colorbar(ax.scatter(x, y, c=delta_times))
     cbar.set_label('Time (minutes)')
+    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'tracking_error.png')
     plt.close()
 
@@ -276,6 +285,7 @@ def plot_tracking_error(wcs, times, output_path, camera):
     ax.set_xlabel('Time (UTC)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.grid()
+    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'tracking_error_vs_time.png')
     plt.close()
 
@@ -298,6 +308,12 @@ def main():
         print("No headers found in input directories.")
         return
 
+    # get date from parent directory
+    date = input_dir.parent.parent.parent.basename()
+    date = f"{date[:4]}-{date[4:6]}-{date[6:]}"
+
+    target = input_dir.parent.basename()
+
     wcs = read_wcs(headers)
     times = extract_times(headers)
     hfds = extract_hfd(headers)
@@ -317,14 +333,14 @@ def main():
 
     print(f"Generating diagnostic plots in {output_path}")
 
-    plot_tracking_error(wcs, times, output_path, cam_colour)
-    plot_hfd_vs_time(times, hfds, output_path, cam_colour)
-    plot_alt_az(alt, az, times, obs_site_ephem, obs_site, output_path)
-    plot_sky_background_vs_time(times, sky_backgrounds, output_path, cam_colour)
-    plot_zp_vs_time(times, zps, output_path, cam_colour)
-    plot_airmass_vs_time(times, alt, output_path)
-    plot_zp_vs_hfd(zps, hfds, output_path, cam_colour)
-    plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output_path)
+    plot_tracking_error(wcs, times, output_path, cam_colour, date, target)
+    plot_hfd_vs_time(times, hfds, output_path, cam_colour, date, target)
+    plot_alt_az(alt, az, times, obs_site_ephem, obs_site, output_path, date, target)
+    plot_sky_background_vs_time(times, sky_backgrounds, output_path, cam_colour, date, target)
+    plot_zp_vs_time(times, zps, output_path, cam_colour, date, target)
+    plot_airmass_vs_time(times, alt, output_path, date, target)
+    plot_zp_vs_hfd(zps, hfds, output_path, cam_colour, date, target)
+    plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output_path, date, target)
 
 
 if __name__ == '__main__':

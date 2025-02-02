@@ -11,7 +11,7 @@ from photutils.aperture import CircularAperture, aperture_photometry
 from astropy.time import Time
 import astropy.units as u
 import astropy.coordinates as coord
-from utilities import red_gain, blue_gain
+from utilities import red_gain, blue_gain, plate_scale
 from astropy.table import hstack, vstack
 from tqdm import tqdm
 
@@ -20,9 +20,9 @@ warnings.filterwarnings("ignore")
 
 def main(args):
     output_path = Path(args.output_path)
-    if output_path.exists():
-        print(f"Photometry table already exists at {output_path}.")
-        exit(1)
+    # if output_path.exists():
+    #     print(f"Photometry table already exists at {output_path}.")
+    #     exit(1)
 
     print(f"Extracting photometry for {args.camera} camera...")
 
@@ -38,6 +38,7 @@ def main(args):
     # get image paths
     img_dir = Path(args.img_dir)
     image_files = sorted(img_dir.files("*.fits"))
+    num_images = len(image_files)
 
     # we want to measure the flux of every star with every aperture radius, store the results in a table
     phot_table = Table()
@@ -46,12 +47,13 @@ def main(args):
     for image_file in tqdm(image_files):
 
         # open image
-        aperture_radii = [5, 10, 15, 20, 25]
+        aperture_radii = ["1.0", "1.5", "2.0"]
         with fits.open(image_file) as hdul:
             frame = hdul[0]
             data = frame.data.astype(float)
             wcs = WCS(frame.header)
             exposure = frame.header["EXPTIME"] * u.s
+            hfd = frame.header["HFD"]
 
             # convert catalogue coordinates to pixel coordinates
             sky_coords = SkyCoord(ra=cat["RA"], dec=cat["DEC"], unit="deg")
@@ -85,7 +87,7 @@ def main(args):
             phot_table_i["BJD"] = [bjd] * len(image_cat)
 
             for r in aperture_radii:
-                ap = CircularAperture(pixel_coords.T, r=r)
+                ap = CircularAperture(pixel_coords.T, r=float(r) * hfd / plate_scale)
                 # calculate total error
                 error = np.sqrt(frame_bg_rms**2 + frame_data_corr / gain)
                 phot_table_i_r = aperture_photometry(frame_data_corr, ap, error=error)
@@ -107,7 +109,13 @@ def main(args):
 
             phot_table = vstack([phot_table, phot_table_i])
     # save photometry table
-    phot_table.write(output_path, overwrite=False)
+    cat["MEASUREMENTS"] = np.zeros(len(cat), dtype=int)
+    for i, star in enumerate(cat):
+        cat["MEASUREMENTS"][i] = len(phot_table[phot_table["ID"] == star["ID"]])
+    cat = cat[cat["MEASUREMENTS"] == num_images]
+    # correct catalogue by including only stars with as many measurements as there are images
+    phot_table = phot_table[np.isin(np.array(phot_table["ID"]), np.array(cat["ID"]))]
+    phot_table.write(output_path, overwrite=True)
 
 
 if __name__ == '__main__':

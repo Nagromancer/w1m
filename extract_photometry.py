@@ -47,13 +47,12 @@ def main(args):
     for image_file in tqdm(image_files):
 
         # open image
-        aperture_radii = ["1.0", "1.5", "2.0"]
+        aperture_radii = [5, 10, 15, 20, 25]
         with fits.open(image_file) as hdul:
             frame = hdul[0]
             data = frame.data.astype(float)
             wcs = WCS(frame.header)
             exposure = frame.header["EXPTIME"] * u.s
-            hfd = frame.header["HFD"]
 
             # convert catalogue coordinates to pixel coordinates
             sky_coords = SkyCoord(ra=cat["RA"], dec=cat["DEC"], unit="deg")
@@ -87,7 +86,7 @@ def main(args):
             phot_table_i["BJD"] = [bjd] * len(image_cat)
 
             for r in aperture_radii:
-                ap = CircularAperture(pixel_coords.T, r=float(r) * hfd / plate_scale)
+                ap = CircularAperture(pixel_coords.T, r=r)
                 # calculate total error
                 error = np.sqrt(frame_bg_rms**2 + frame_data_corr / gain)
                 phot_table_i_r = aperture_photometry(frame_data_corr, ap, error=error)

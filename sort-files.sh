@@ -95,31 +95,8 @@ for date in $dates; do
             exit 1
           fi
 
-          # measure HFD
-          python $bin/measure_hfd.py $target/calibrated $cam
-          if [[ $? -ne 0 ]]; then
-            echo "Error processing $target"
-            exit 1
-          fi
-
-          # reject bad images
-          mkdir -p $target/rejected
-          python $bin/remove_bad_files.py $target/calibrated $target/rejected
-          if [[ $? -ne 0 ]]; then
-            echo "Error processing $target"
-            exit 1
-          fi
-
-          # create diagnostic plots
-          # check to see if diagnostic plots have already been created
-          if [[ ! -d $target/plots ]]; then
-            mkdir -p $target/plots
-            python $bin/diagnostic_plots.py $target/calibrated $target/rejected $target/plots
-          fi
-          if [[ $? -ne 0 ]]; then
-            echo "Error processing $target"
-            exit 1
-          fi
+          # extract photometry
+          python $bin/extract_photometry.py "$ref_cat" $target/calibrated "$target/$date_only-$target_only-$cam-phot.fits" $cam
         fi
     done
     echo "\n"

@@ -11,7 +11,7 @@ from photutils.aperture import CircularAperture, aperture_photometry
 from astropy.time import Time
 import astropy.units as u
 import astropy.coordinates as coord
-from utilities import red_gain, blue_gain, plate_scale
+from utilities import red_gain, blue_gain
 from astropy.table import hstack, vstack
 from tqdm import tqdm
 
@@ -47,7 +47,7 @@ def main(args):
     for image_file in tqdm(image_files):
 
         # open image
-        aperture_radii = [5, 10, 15, 20, 25]
+        aperture_radii = [5, 10, 15, 20, 25]  # unbinned pixels
         with fits.open(image_file) as hdul:
             frame = hdul[0]
             data = frame.data.astype(float)
@@ -67,12 +67,12 @@ def main(args):
             hjd = (frame_time.utc + ltt_hjd).jd
 
             # check if pixel coordinates are within image bounds
-            valid_coords_idx = (pixel_coords[0] > 25) & (pixel_coords[0] < (data.shape[1] - 25)) & (pixel_coords[1] > 25) & (pixel_coords[1] < (data.shape[0] - 25))
+            valid_coords_idx = (pixel_coords[0] > (25 / args.binning)) & (pixel_coords[0] < (data.shape[1] - (25 / args.binning))) & (pixel_coords[1] > (25 / args.binning)) & (pixel_coords[1] < (data.shape[0] - (25 / args.binning)))
             pixel_coords = pixel_coords[:, valid_coords_idx]
             image_cat = cat[valid_coords_idx]
 
             # extract photometry
-            frame_bg = sep.Background(data, bw=128, bh=128)
+            frame_bg = sep.Background(data, bw=128 / args.binning, bh=128 / args.binning)
             frame_bg_rms = frame_bg.rms()
             frame_data_corr = data - frame_bg
 
@@ -86,7 +86,7 @@ def main(args):
             phot_table_i["BJD"] = [bjd] * len(image_cat)
 
             for r in aperture_radii:
-                ap = CircularAperture(pixel_coords.T, r=r)
+                ap = CircularAperture(pixel_coords.T, r=r / args.binning)
                 # calculate total error
                 error = np.sqrt(frame_bg_rms**2 + frame_data_corr / gain)
                 phot_table_i_r = aperture_photometry(frame_data_corr, ap, error=error)
@@ -123,5 +123,6 @@ if __name__ == '__main__':
     parser.add_argument('img_dir', type=str, help='Base directory containing the images.')
     parser.add_argument('output_path', type=str, help='Output directory for photometry table.')
     parser.add_argument('camera', type=str, choices=['red', 'blue'], help='Camera colour.')
+    parser.add_argument('binning', type=int, help='Binning factor.')
     args = parser.parse_args()
     main(args)

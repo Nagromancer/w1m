@@ -57,7 +57,16 @@ for date in $dates; do
   # calibrate the raw files
   for cam in blue red; do
     echo "Processing $cam camera on $date_only"
-    python $bin/flats.py $base_dir/$cam/flat $home_dir/calibration_frames/master-bias-$cam.fits $home_dir/calibration_frames/master-dark-$cam.fits $base_dir/$cam/flat
+    # use fitsheader to get the binning of the flat files - just use one of the flat files
+    # get the first flat file - make sure it's not the master flat called master-flat.fits which is in the flat directory
+    cap_cam=$(echo $cam | awk '{print toupper($0)}')
+    flat_file=$(ls $base_dir/$cam/flat/*$cap_cam*.fits | head -n 1)
+
+    bin_x=$(fitsheader $flat_file | grep "XBIN" | awk '{print $2}')
+    bin_y=$(fitsheader $flat_file | grep "YBIN" | awk '{print $2}')
+    echo "Detected binning: $bin_x x $bin_y in the flat files"
+    python $bin/flats.py $base_dir/$cam/flat $home_dir/calibration_frames/master-bias-$cam-"$bin_x".fits $home_dir/calibration_frames/master-dark-$cam-"$bin_x".fits $base_dir/$cam/flat
+
     for target in $base_dir/$cam/*; do
       if [[ -d $target/plots ]]; then
         echo "Skipping $target"
@@ -69,9 +78,14 @@ for date in $dates; do
           target_only=$(basename $target)
           echo "Processing $target_only on $cam camera on $date_only"
 
+          raw_file=$(ls $target/raw/*.fits | head -n 1)
+          bin_x=$(fitsheader $raw_file | grep "XBIN" | awk '{print $2}')
+          bin_y=$(fitsheader $raw_file | grep "YBIN" | awk '{print $2}')
+          echo "Detected binning: $bin_x x $bin_y in the raw files"
+
           # make calibrated directory and calibrate images
           mkdir -p $target/calibrated
-          python $bin/calibrate.py $target/raw $home_dir/calibration_frames/master-bias-$cam.fits $home_dir/calibration_frames/master-dark-$cam.fits $base_dir/$cam/flat/master-flat-$cam.fits $target/calibrated
+          python $bin/calibrate.py $target/raw $home_dir/calibration_frames/master-bias-$cam-"$bin_x".fits $home_dir/calibration_frames/master-dark-$cam-"$bin_x".fits $base_dir/$cam/flat/master-flat-$cam.fits $target/calibrated
           if [[ $? -ne 0 ]]; then
             echo "Error processing $target"
             exit 1
@@ -89,14 +103,38 @@ for date in $dates; do
           fi
 
           # solve astrometry
-          python $bin/solve-astrometry.py "$ref_cat" $target/calibrated/*.fits
+          python $bin/solve-astrometry.py "$ref_cat" $target/calibrated/*.fits "$bin_x"
           if [[ $? -ne 0 ]]; then
-            echo "Error processing $target"
+            echo "Error processing $target. Failed to solve astrometry."
+            exit 1
+          fi
+
+          # measure HFD
+          python $bin/measure_hfd.py $target/calibrated $cam "$bin_x"
+          if [[ $? -ne 0 ]]; then
+            echo "Error processing $target. Failed to measure HFD."
+            exit 1
+          fi
+          # reject bad images
+          mkdir -p $target/rejected
+          python $bin/remove_bad_files.py $target/calibrated $target/rejected
+          if [[ $? -ne 0 ]]; then
+            echo "Error processing $target. Failed to reject bad files."
+            exit 1
+          fi
+          # create diagnostic plots
+          # check to see if diagnostic plots have already been created
+          if [[ ! -d $target/plots ]]; then
+            mkdir -p $target/plots
+            python $bin/diagnostic_plots.py $target/calibrated $target/rejected $target/plots "$bin_x"
+          fi
+          if [[ $? -ne 0 ]]; then
+            echo "Error processing $target. Failed to create diagnostic plots"
             exit 1
           fi
 
           # extract photometry
-          python $bin/extract_photometry.py "$ref_cat" $target/calibrated "$target/$date_only-$target_only-$cam-phot.fits" $cam
+          python $bin/extract_photometry.py "$ref_cat" $target/calibrated "$target/$date_only-$target_only-$cam-phot.fits" $cam "$bin_x"
         fi
     done
     echo "\n"

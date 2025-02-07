@@ -25,7 +25,7 @@ camera = "blue"
 bin_size = 5 / 1440  # 10 minutes in days
 date = "20250205"
 
-aperture_radius = 10
+aperture_radius = 15
 
 target = "Gaia DR3 1571584539980588544"
 cat_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/reference_catalogues/{target}/{date}-{target}.fits")
@@ -44,8 +44,9 @@ cat[cat["VALID"]].pprint_all()
 # create a reference light curve from the sum of all stars in the reference catalogue
 std_devs = []
 binned_std_devs = []
+average_fluxes = []
 for target_id in cat[cat["VALID"]]["ID"]:
-    target_id = 1571584539980588544
+    # target_id = 1571584539980588544
     target_coords = SkyCoord(cat[cat["ID"] == target_id]["RA"], cat[cat["ID"] == target_id]["DEC"], unit="deg")
     target_mag = cat[cat["ID"] == target_id]['BP_MAG' if camera == 'blue' else 'RP_MAG'][0]
 
@@ -110,25 +111,51 @@ for target_id in cat[cat["VALID"]]["ID"]:
     std_devs.append(std_dev)
     binned_std_dev = np.std(binned_relative_flux / binned_trend) * 1000
     binned_std_devs.append(binned_std_dev)
+    average_fluxes.append(np.mean(fluxes))
 
-    print(f"{target_mag:.2f} mag: Standard deviation: Trend - {trend_std_dev:.3f} ppt | Relative - {std_dev:.3f} ppt | Binned - {binned_std_dev:.3f} ppt")
-    plt.errorbar(times, relative_flux, yerr=relative_flux_errs, fmt='o', color='black', markersize=5, alpha=0.1)
-    plt.errorbar(binned_times, binned_relative_flux, yerr=binned_relative_flux_errs, fmt='o', color='black', markersize=5)
-    # plt.plot(times, trend, color='red', lw=2)
-    plt.title(f"Target {target_id} ({target_mag:.2f} mag) - {aperture_radius} px")
-    plt.xlabel(f"Time (HJD - 2460000)")
-    plt.ylabel(f"Relative Flux ({'Blue' if camera == 'blue' else 'Red'} Camera)")
-    plt.show()
-    plt.close()
-    exit()
+    # print(f"{target_mag:.2f} mag: Standard deviation: Trend - {trend_std_dev:.3f} ppt | Relative - {std_dev:.3f} ppt | Binned - {binned_std_dev:.3f} ppt")
+    # plt.errorbar(times, relative_flux, yerr=relative_flux_errs, fmt='o', color='black', markersize=5, alpha=0.1)
+    # plt.errorbar(binned_times, binned_relative_flux, yerr=binned_relative_flux_errs, fmt='o', color='black', markersize=5)
+    # # plt.plot(times, trend, color='red', lw=2)
+    # plt.title(f"Target {target_id} ({target_mag:.2f} mag) - {aperture_radius} px")
+    # plt.xlabel(f"Time (HJD - 2460000)")
+    # plt.ylabel(f"Relative Flux ({'Blue' if camera == 'blue' else 'Red'} Camera)")
+    # plt.show()
+    # plt.close()
 
 plt.plot(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"], std_devs, 'o', color='black')
 plt.plot(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"], binned_std_devs, 'o', color='red')
-plt.xlabel(f"{'BP' if camera == 'blue' else 'RP'} Magnitude")
+if camera == 'blue':
+    plt.xlabel('${G}_\mathrm{BP}$ (mag)')
+else:
+    plt.xlabel('${G}_\mathrm{RP}$ (mag)')
 plt.ylabel("Standard Deviation (ppt)")
 plt.yscale('log')
 plt.title(f"Standard Deviation vs Magnitude - {aperture_radius} px")
-plt.ylim(0.2, 200)
-plt.xlim(12.5, 18.5)
+# plt.ylim(0.2, 200)
+# plt.xlim(12.5, 18.5)
 plt.grid()
+plt.show()
+
+# plot flux vs magnitude
+plt.scatter(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"], average_fluxes, 40, c=cat[cat["VALID"]]["BP_RP"], cmap='coolwarm', clim=(0.0, 2.5))
+# colorbar with label
+# fit a line to log(flux) vs magnitude with np.polyfit
+trend = np.polyfit(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"], np.log10(average_fluxes), 1)
+x = np.linspace(np.min(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"]), np.max(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"]), 100)
+y = 10 ** (trend[0] * x + trend[1])
+plt.plot(x, y, color='black', lw=1)
+print(f"ZP: {-trend[1] / trend[0]:.3f} mag")
+
+
+plt.colorbar(label="${G}_\mathrm{BP} - G_\mathrm{RP}$ (mag)")
+if camera == 'blue':
+    plt.xlabel('${G}_\mathrm{BP}$ (mag)')
+else:
+    plt.xlabel('${G}_\mathrm{RP}$ (mag)')
+plt.ylabel("Mean Flux (e$^{-}$ s$^{-1}$)")
+plt.title(f"Mean Flux vs Magnitude - {aperture_radius} px")
+plt.grid()
+plt.yscale('log')
+plt.tight_layout()
 plt.show()

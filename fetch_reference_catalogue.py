@@ -8,8 +8,8 @@ import numpy as np
 import warnings
 import pickle
 
-from jplephem.names import target_names
 from path import Path
+
 
 def generate_query_polygon(center, width, height, max_step_distance):
     """

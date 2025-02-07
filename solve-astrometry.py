@@ -17,6 +17,7 @@ from astropy.stats import sigma_clip, sigma_clipped_stats
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, Column
 from matplotlib import pyplot as plt
+from utilities import plate_scale
 
 warnings.filterwarnings("ignore")
 
@@ -34,6 +35,9 @@ def arg_parse():
                    type=str,
                    nargs='+',
                    default=[])
+    p.add_argument('binning',
+                   help='Binning of the detector',
+                   type=int,)
     p.add_argument('--indir',
                    help='location of input files',
                    default='.',
@@ -387,8 +391,8 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
 
     area_min = 10
     area_max = 400
-    scale_min = 0.38
-    scale_max = 0.46
+    scale_min = plate_scale * args.binning * 0.95
+    scale_max = plate_scale * args.binning * 1.05
     detection_sigma = 3
     zp_clip_sigma = 3
 

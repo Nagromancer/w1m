@@ -498,7 +498,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
 
         # calculate flux with aperture radius of 10 pixels
         zp_calc_objects = objects[zp_filter]
-        flux10, fluxerr10, _ = sep.sum_circle(frame_data_corr, zp_calc_objects['X'], zp_calc_objects['Y'], 10.0,
+        flux10, fluxerr10, _ = sep.sum_circle(frame_data_corr, zp_calc_objects['X'], zp_calc_objects['Y'], 10.0 / args.binning,
                                               subpix=0, gain=1)
         zp_calc_objects['FLUX10'] = flux10
         zp_calc_objects['FLUXERR10'] = fluxerr10

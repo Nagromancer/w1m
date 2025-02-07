@@ -11,7 +11,6 @@ from utilities import red_gain, blue_gain, plate_scale
 from astropy.coordinates import get_body, AltAz, EarthLocation
 import ephem
 
-
 plt.rcParams['figure.figsize'] = [14, 9]
 plt.rcParams["font.family"] = "Times"
 plt.rcParams["font.size"] = 32
@@ -77,11 +76,11 @@ def extract_alt_az(headers):
     return np.array(alts), np.array(azs)
 
 
-def extract_sky_background(headers, gain):
+def extract_sky_background(headers, gain, plate_scale, binning):
     sky_backgrounds = []
     for header in headers:
         try:
-            sky_backgrounds.append(header['BACK-LVL'] / header['EXPTIME'] * gain)
+            sky_backgrounds.append(header['BACK-LVL'] / header['EXPTIME'] * gain / ((plate_scale * binning) ** 2))
         except KeyError:
             sky_backgrounds.append(np.nan)
     return np.array(sky_backgrounds)
@@ -182,7 +181,7 @@ def plot_sky_background_vs_time(times, sky_backgrounds, output_path, camera, dat
     fig, ax = plt.subplots()
     ax.plot(times, sky_backgrounds, color=camera)
     ax.set_xlabel('Time (UTC)')
-    ax.set_ylabel('Sky background (e$^-$px$^{-1}$s$^{-1}$)')
+    ax.set_ylabel('Sky background (e$^-$ s$^{-1}$ arcsec$^{-2}$)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.grid()
     ax.set_title(f"{target} - {date} ({camera.capitalize()})")
@@ -200,7 +199,7 @@ def plot_alt_az(alts, azs, times, obs_site_ephem, obs_site, output_path, date, t
     moon_alt = moon_alt_az.alt.deg
     moon_az = moon_alt_az.az.deg
 
-    plt.figure(figsize=(10,10))
+    plt.figure(figsize=(10, 10))
     ax = plt.subplot(1, 1, 1, projection='polar')
     ax.set_theta_direction(-1)
     ax.set_theta_offset(np.pi / 2.0)
@@ -217,7 +216,7 @@ def plot_alt_az(alts, azs, times, obs_site_ephem, obs_site, output_path, date, t
             az_interp = np.linspace(azs[i], azs[i + 1], 10)
             alt_interp = np.interp(az_interp, [azs[i], azs[i + 1]], [alts[i], alts[i + 1]])
             ax.plot(az_interp[-1] * np.pi / 180, alt_interp[-1], 'ko', markersize=2)
-            ax.text(az_interp[-1] * np.pi / 180, alt_interp[-1], f"{times[i+1].strftime('%H')}h", fontsize=20)
+            ax.text(az_interp[-1] * np.pi / 180, alt_interp[-1], f"{times[i + 1].strftime('%H')}h", fontsize=20)
 
     # do the same for the moon
     for i in range(0, len(moon_az) - 1):
@@ -226,7 +225,7 @@ def plot_alt_az(alts, azs, times, obs_site_ephem, obs_site, output_path, date, t
             alt_interp = np.interp(az_interp, [moon_az[i], moon_az[i + 1]], [moon_alt[i], moon_alt[i + 1]])
             if alt_interp[-1] > 0:
                 ax.plot(az_interp[-1] * np.pi / 180, alt_interp[-1], 'ko', markersize=2)
-                ax.text(az_interp[-1] * np.pi / 180, alt_interp[-1], f"{times[i+1].strftime('%H')}h", fontsize=20)
+                ax.text(az_interp[-1] * np.pi / 180, alt_interp[-1], f"{times[i + 1].strftime('%H')}h", fontsize=20)
 
     ax.legend(loc="upper left", bbox_to_anchor=(-0.1, 1.05))
     ax.set_title(f"{target} - {date}")
@@ -235,7 +234,7 @@ def plot_alt_az(alts, azs, times, obs_site_ephem, obs_site, output_path, date, t
     plt.close()
 
 
-def plot_tracking_error(wcs, times, output_path, camera, date, target):
+def plot_tracking_error(wcs, times, output_path, camera, date, target, binning):
     # check to see if wcs list only contains None
     if all([w is None for w in wcs]):
         return
@@ -253,17 +252,17 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target):
     pixel_coords = np.array(pixel_coords)
     pixel_coords -= pixel_coords[0]
 
-    x = pixel_coords[:, 0]
-    y = pixel_coords[:, 1]
+    x = pixel_coords[:, 0] * plate_scale * binning
+    y = pixel_coords[:, 1] * plate_scale * binning
 
-    # reject more than 100 arcsec from start in any direction. making sure x, y, t are same length
-    x, y, times = zip(*[(x_, y_, t) for x_, y_, t in zip(x, y, times) if np.sqrt(x_ ** 2 + y_ ** 2) < 100])
+    # reject more than 50 arcsec from start in any direction. making sure x, y, t are same length
+    x, y, times = zip(*[(x_, y_, t) for x_, y_, t in zip(x, y, times) if np.sqrt(x_ ** 2 + y_ ** 2) < 50])
 
     fig, ax = plt.subplots()
     delta_times = np.array([(t - times[0]).total_seconds() for t in times]) / 60
     ax.scatter(x, y, c=delta_times)
-    ax.set_xlabel('X offset (pixel)')
-    ax.set_ylabel('Y offset (pixel)')
+    ax.set_xlabel('X offset (arcsec)')
+    ax.set_ylabel('Y offset (arcsec)')
     cbar = plt.colorbar(ax.scatter(x, y, c=delta_times))
     cbar.set_label('Time (minutes)')
     ax.set_title(f"{target} - {date} ({camera.capitalize()})")
@@ -277,7 +276,7 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target):
     ax.plot(times, x, label='X', color=c1)
     ax.plot(times, y, label='Y', color=c2)
     ax.legend()
-    ax.set_ylabel('Offset (pixel)')
+    ax.set_ylabel('Offset (arcsec)')
     ax.set_xlabel('Time (UTC)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.grid()
@@ -293,6 +292,7 @@ def main():
     parser.add_argument('input_dir', type=str, help='Directory containing input images.')
     parser.add_argument('reject_dir', type=str, help='Directory containing rejected images.')
     parser.add_argument('output_dir', type=str, help='Directory to place the diagnostic plots.')
+    parser.add_argument('binning', type=int, help='Binning factor.')
     args = parser.parse_args()
 
     input_dir = Path(args.input_dir)
@@ -315,7 +315,7 @@ def main():
     hfds = extract_hfd(headers)
     alt, az = extract_alt_az(headers)
     gain, cam_colour = get_camera_gain(input_dir.files('*.fits') + reject_dir.files('*.fits'))
-    sky_backgrounds = extract_sky_background(headers, gain)
+    sky_backgrounds = extract_sky_background(headers, gain, plate_scale, args.binning)
     zps = extract_zp(headers) + 2.5 * np.log10(gain)
     wind_speeds, median_winds, wind_gusts = extract_wind_speed(headers)
 
@@ -329,7 +329,7 @@ def main():
 
     print(f"Generating diagnostic plots in {output_path}")
 
-    plot_tracking_error(wcs, times, output_path, cam_colour, date, target)
+    plot_tracking_error(wcs, times, output_path, cam_colour, date, target, args.binning)
     plot_hfd_vs_time(times, hfds, output_path, cam_colour, date, target)
     plot_alt_az(alt, az, times, obs_site_ephem, obs_site, output_path, date, target)
     plot_sky_background_vs_time(times, sky_backgrounds, output_path, cam_colour, date, target)

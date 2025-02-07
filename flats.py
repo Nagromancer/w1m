@@ -25,7 +25,7 @@ if not os.path.exists(out_dir):
     os.mkdir(out_dir)
 
 flat_files = raw_dir.files('*flat*')
-flat_files = [file for file in flat_files if "._" not in str(file)]  # remove hidden files
+flat_files = [file for file in flat_files if "._" not in str(file) and "master" not in str(file)]  # remove hidden files
 if len(flat_files) == 0:
     print("No flat-field images found.")
     exit(1)

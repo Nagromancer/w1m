@@ -390,7 +390,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
     output = fits.PrimaryHDU(frame_data.astype(np.float32), header=frame.header)
 
     area_min = 10
-    area_max = 400 / args.binning ** 2
+    area_max = 400
     scale_min = plate_scale * args.binning * 0.95
     scale_max = plate_scale * args.binning * 1.05
     detection_sigma = 3
@@ -452,7 +452,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
             delta_y = np.abs(wcs_y - objects['Y'])
             delta_xy = np.sqrt(delta_x ** 2 + delta_y ** 2)
 
-            zp_mask = delta_xy > 10 / args.binning  # pixels
+            zp_mask = delta_xy > 10  # pixels
 
             zp_delta_mag = matched_cat['G_MAG'] + 2.5 * np.log10(objects['FLUX'] / frame_exptime)
             zp_mean, _, zp_stddev = sigma_clipped_stats(zp_delta_mag, mask=zp_mask, sigma=zp_clip_sigma)

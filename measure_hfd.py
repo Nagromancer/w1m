@@ -15,7 +15,7 @@ from utilities import plate_scale, red_gain, blue_gain
 import argparse
 
 
-def measure_hfd(files, camera, plot=True, sep_threshold=1.3, verbose=False):
+def measure_hfd(files, camera, binning, plot=True, sep_threshold=1.3, verbose=False):
     failed_extractions = 0
     failed_writes = 0
     failed_reads = 0
@@ -92,7 +92,7 @@ def measure_hfd(files, camera, plot=True, sep_threshold=1.3, verbose=False):
             radius_flag == 0
         ])
         fluxes = flux[filt]
-        hfds1 = 2 * r[filt] * plate_scale
+        hfds1 = 2 * r[filt] * plate_scale * binning
         if plot:
             # plot hfd against flux with log scale histogram of hfds
             fig, ax = plt.subplots(1, 2, figsize=(10, 5))
@@ -131,11 +131,12 @@ def main():
     parser = argparse.ArgumentParser(description='Analyse background-subtracted images')
     parser.add_argument('input_dir', type=str, help='Directory containing input images.')
     parser.add_argument('camera', type=str, choices=['red', 'blue'], help='Camera colour.')
+    parser.add_argument('binning', type=int, help='Binning factor.')
     args = parser.parse_args()
 
     input_dir = Path(args.input_dir)
     image_files = sorted(input_dir.files())
-    measure_hfd(image_files, camera=args.camera, plot=False)
+    measure_hfd(image_files, camera=args.camera, binning=args.binning, plot=False)
 
 
 if __name__ == '__main__':

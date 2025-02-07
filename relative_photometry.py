@@ -8,7 +8,7 @@ from astropy.coordinates import SkyCoord
 
 def get_light_curve(phot, target_id, aperture_radius):
     target_phot = phot[phot["ID"] == target_id]
-    time = np.array(target_phot["BJD"])
+    time = np.array(target_phot["HJD"])
     flux = np.array(target_phot[f"FLUX_{aperture_radius}"])
     flux_err = np.array(target_phot[f"FLUX_ERR_{aperture_radius}"])
     return time, flux, flux_err
@@ -22,14 +22,15 @@ plt.rcParams['text.usetex'] = True
 plt.rcParams['axes.titlesize'] = 32
 
 camera = "blue"
-bin_size = 10 / 1440  # 10 minutes in days
-date = "20250128"
+bin_size = 5 / 1440  # 10 minutes in days
+date = "20250205"
 
-aperture_radius = 20
+aperture_radius = 10
 
-cat_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/reference_catalogues/Gaia DR3 817461778282929664/{date}-Gaia DR3 817461778282929664.fits")
-phot_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/Gaia DR3 817461778282929664/{date}-Gaia DR3 817461778282929664-{camera}-phot.fits")
-image_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/Gaia DR3 817461778282929664/calibrated")
+target = "Gaia DR3 1571584539980588544"
+cat_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/reference_catalogues/{target}/{date}-{target}.fits")
+phot_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/{date}-{target}-{camera}-phot.fits")
+image_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/calibrated")
 phot_table = Table.read(phot_path)
 
 num_images = len(image_path.files("*.fits"))
@@ -44,6 +45,7 @@ cat[cat["VALID"]].pprint_all()
 std_devs = []
 binned_std_devs = []
 for target_id in cat[cat["VALID"]]["ID"]:
+    target_id = 1571584539980588544
     target_coords = SkyCoord(cat[cat["ID"] == target_id]["RA"], cat[cat["ID"] == target_id]["DEC"], unit="deg")
     target_mag = cat[cat["ID"] == target_id]['BP_MAG' if camera == 'blue' else 'RP_MAG'][0]
 
@@ -63,12 +65,12 @@ for target_id in cat[cat["VALID"]]["ID"]:
         ref_flux += flux
 
     times, fluxes, flux_errs = get_light_curve(phot_table, target_id, aperture_radius)
-    times -= times[0]
+    times -= 2460000
     relative_flux = fluxes / ref_flux
     median_rel_flux = np.median(relative_flux)
     relative_flux /= median_rel_flux
     relative_flux_errs = flux_errs / ref_flux
-    relative_flux_errs /= median_rel_flux
+    relative_flux_errs /= np.abs(median_rel_flux)
 
     # remove outliers
     standard_deviation = np.std(relative_flux)
@@ -77,7 +79,7 @@ for target_id in cat[cat["VALID"]]["ID"]:
     relative_flux = relative_flux[mask]
     relative_flux_errs = relative_flux_errs[mask]
 
-    flattened, trend = wotan.flatten(time=times, flux=relative_flux, method='biweight', window_length=0.1, return_trend=True)
+    flattened, trend = wotan.flatten(time=times, flux=relative_flux, method='biweight', window_length=0.02, return_trend=True)
 
     # bin the light curve
     if bin_size is not None:
@@ -85,7 +87,7 @@ for target_id in cat[cat["VALID"]]["ID"]:
         binned_relative_flux = []
         binned_relative_flux_errs = []
         binned_trend = []
-        for i in range(int(np.ceil(times[-1] / bin_size))):
+        for i in range(int(np.ceil(times[0] / bin_size)), int(np.ceil(times[-1] / bin_size))):
             mask = (times > i * bin_size) & (times < (i + 1) * bin_size)
             if np.sum(mask) == 0:
                 continue
@@ -110,14 +112,15 @@ for target_id in cat[cat["VALID"]]["ID"]:
     binned_std_devs.append(binned_std_dev)
 
     print(f"{target_mag:.2f} mag: Standard deviation: Trend - {trend_std_dev:.3f} ppt | Relative - {std_dev:.3f} ppt | Binned - {binned_std_dev:.3f} ppt")
-    plt.errorbar(times, relative_flux, yerr=relative_flux_errs, fmt='o', color='black', markersize=5, alpha=0.2)
+    plt.errorbar(times, relative_flux, yerr=relative_flux_errs, fmt='o', color='black', markersize=5, alpha=0.1)
     plt.errorbar(binned_times, binned_relative_flux, yerr=binned_relative_flux_errs, fmt='o', color='black', markersize=5)
-    plt.plot(times, trend, color='red', lw=2)
+    # plt.plot(times, trend, color='red', lw=2)
     plt.title(f"Target {target_id} ({target_mag:.2f} mag) - {aperture_radius} px")
-    plt.xlabel("Time (days)")
-    plt.ylabel(f"Relative Flux ({'BP' if camera == 'blue' else 'RP'})")
+    plt.xlabel(f"Time (HJD - 2460000)")
+    plt.ylabel(f"Relative Flux ({'Blue' if camera == 'blue' else 'Red'} Camera)")
     plt.show()
     plt.close()
+    exit()
 
 plt.plot(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"], std_devs, 'o', color='black')
 plt.plot(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"], binned_std_devs, 'o', color='red')

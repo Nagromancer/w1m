@@ -54,24 +54,22 @@ def plot_dark_hist(dark_path, camera):
     fig, ax = plt.subplots()
 
     # logorithmically spaced bins
-    bins = np.logspace(np.log10(0.5), np.log10(10), 100) if camera == "red" else np.linspace(data.min(), 1, 100)
+    bins = np.linspace(1, 10, 100) if camera == "red" else np.linspace(data.min(), 1, 100)
 
     ax.hist(data, bins=bins, histtype='step', color='black', lw=1.5)
-    if camera == "red":
-        ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlabel('Dark current (e$^{-}$px$^{-1}$s$^{-1}$)')
     ax.set_ylabel('Number of pixels')
     ax.axvline(np.median(data), color='red', linestyle='--', label=f'Median: {np.median(data):.4f} ' "e$^{-}$px$^{-1}$s$^{-1}$")
     ax.legend(loc='upper right')
-    plt.savefig(f'/Volumes/SanDisk-2TB-SSD/w1m/dc_analysis/dark/dark-current-histogram-{camera}.pdf', bbox_inches='tight')
+    plt.savefig(f'/Volumes/SanDisk-2TB-SSD/w1m/calibration_frames/dark-current-histogram-{camera}-2.pdf', bbox_inches='tight')
     plt.show()
 
 
 def main():
     plot_images()
     camera = "red"
-    master_dark_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dc_analysis/dark/master-dark-{camera}.fits")
+    master_dark_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/calibration_frames/master-dark-{camera}-2.fits")
     plot_dark_hist(master_dark_path, camera)
 
 

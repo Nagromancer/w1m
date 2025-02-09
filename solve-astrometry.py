@@ -38,6 +38,10 @@ def arg_parse():
     p.add_argument('binning',
                    help='Binning of the detector',
                    type=int,)
+    p.add_argument('camera',
+                   type=str,
+                   choices=['red', 'blue'],
+                   help='Camera colour.')
     p.add_argument('--indir',
                    help='location of input files',
                    default='.',
@@ -344,7 +348,7 @@ def polynomial_from_header(wcs_header, axis, force3rd):
     return models.Polynomial2D(degree=wcs_header[axis + '_ORDER'], **coeffs)
 
 
-def prepare_frame(input_path, output_path, catalog, force3rd):
+def prepare_frame(input_path, output_path, catalog, force3rd, reference_mag):
     """
     Prepare the frame for WCS solution. The output is the solved image
 
@@ -358,6 +362,8 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
         Reference catalog
     force3rd : boolean
         Force a new 3rd order poly for distortion fitting
+    reference_magnitude : string
+        Reference magnitude colour for the catalog
 
     Returns
     -------
@@ -375,9 +381,9 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
 
     catalog = catalog[catalog['VALID'] == True]
     gids = catalog['ID']
-    gmag = catalog['G_MAG']
+    colour_mag = catalog[reference_mag]
     # make a cross-match mask
-    cm_mask = np.where(((~np.isnan(gids)) & (gmag <= 17) & (gmag >= 12)))[0]
+    cm_mask = np.where(((~np.isnan(gids)) & (colour_mag <= 17) & (colour_mag >= 12)))[0]
     # make a trimmed catalog for cross-matching
     catalog_cm = catalog[cm_mask]
 
@@ -454,7 +460,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
 
             zp_mask = delta_xy > 10  # pixels
 
-            zp_delta_mag = matched_cat['G_MAG'] + 2.5 * np.log10(objects['FLUX'] / frame_exptime)
+            zp_delta_mag = matched_cat[reference_mag] + 2.5 * np.log10(objects['FLUX'] / frame_exptime)
             zp_mean, _, zp_stddev = sigma_clipped_stats(zp_delta_mag, mask=zp_mask, sigma=zp_clip_sigma)
 
             # Discard blends and any objects with inconsistent brightness
@@ -502,12 +508,12 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
                                               subpix=0, gain=1)
         zp_calc_objects['FLUX10'] = flux10
         zp_calc_objects['FLUXERR10'] = fluxerr10
-        zp_delta_mag = matched_cat[zp_filter]['G_MAG'] + 2.5 * np.log10(zp_calc_objects['FLUX10'] / frame_exptime)
+        zp_delta_mag = matched_cat[zp_filter][reference_mag] + 2.5 * np.log10(zp_calc_objects['FLUX10'] / frame_exptime)
         zp_mean, _, zp_stddev = sigma_clipped_stats(zp_delta_mag, sigma=zp_clip_sigma)
 
     except Exception:
         print("{} failed WCS, skipping...\n".format(input_path))
-        traceback.print_exc(file=sys.stdout)
+        # traceback.print_exc(file=sys.stdout)
         return None, None, None, None, None
 
     # Add zero point to header
@@ -529,6 +535,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd):
 
 if __name__ == "__main__":
     args = arg_parse()
+    reference_mag = "BP_MAG" if args.camera == "blue" else "RP_MAG"
 
     # check for a catalog
     if not os.path.exists(args.cat_file):
@@ -558,7 +565,8 @@ if __name__ == "__main__":
             final_wcs, objects_matched, catalog_matched, residuals, initial_wcs = prepare_frame(input_image,
                                                                                    input_image,
                                                                                    master_catalog,
-                                                                                   args.force3rd)
+                                                                                   args.force3rd,
+                                                                                   reference_mag)
             wcs_store.append(final_wcs)
 
             if final_wcs is None:
@@ -612,8 +620,11 @@ if __name__ == "__main__":
                 ax[0].set_ylabel('Delta XY (pix)')
 
                 # plot residuals versus brightness
-                ax[1].plot(catalog_matched['G_MAG'], residuals, 'k.')
-                ax[1].set_xlabel('G mag')
+                ax[1].plot(catalog_matched[reference_mag], residuals, 'k.')
+                if args.camera == 'blue':
+                    ax[1].set_xlabel('${G}_\mathrm{BP}$ (mag)')
+                else:
+                    ax[1].set_xlabel('${G}_\mathrm{RP}$ (mag)')
                 ax[1].set_ylabel('Delta XY (pix)')
 
                 fig.tight_layout()

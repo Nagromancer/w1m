@@ -103,7 +103,7 @@ for date in $dates; do
           fi
 
           # solve astrometry
-          python $bin/solve-astrometry.py "$ref_cat" $target/calibrated/*.fits "$bin_x"
+          python $bin/solve-astrometry.py "$ref_cat" $target/calibrated/*.fits "$bin_x" $cam
           if [[ $? -ne 0 ]]; then
             echo "Error processing $target. Failed to solve astrometry."
             exit 1
@@ -117,7 +117,7 @@ for date in $dates; do
           fi
           # reject bad images
           mkdir -p $target/rejected
-          python $bin/remove_bad_files.py $target/calibrated $target/rejected
+          python $bin/remove_bad_files.py $target/calibrated $target/rejected $cam
           if [[ $? -ne 0 ]]; then
             echo "Error processing $target. Failed to reject bad files."
             exit 1

@@ -132,7 +132,10 @@ def plot_zp_vs_time(times, zps, output_path, camera, date, target):
     fig, ax = plt.subplots()
     ax.plot(times, zps, color=camera)
     ax.set_xlabel('Time (UTC)')
-    ax.set_ylabel('Mean ZP mag (1 e$^-$s$^{-1}$)')
+    if camera == 'blue':
+        ax.set_ylabel('Mean ${G}_\mathrm{BP}$ ZP mag (1 e$^-$s$^{-1}$)')
+    else:
+        ax.set_ylabel('Mean ${G}_\mathrm{RP}$ ZP mag (1 e$^-$s$^{-1}$)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.set_title(f"{target} - {date} ({camera.capitalize()})")
     ax.grid()
@@ -170,7 +173,10 @@ def plot_zp_vs_hfd(zps, hfds, output_path, camera, date, target):
     fig, ax = plt.subplots()
     ax.plot(hfds, zps, 'o', color=camera)
     ax.set_xlabel('HFD (arcsec)')
-    ax.set_ylabel('Mean ZP mag (1 e$^-$s$^{-1}$)')
+    if camera == 'blue':
+        ax.set_ylabel('Mean ${G}_\mathrm{BP}$ ZP mag (1 e$^-$s$^{-1}$)')
+    else:
+        ax.set_ylabel('Mean ${G}_\mathrm{RP}$ ZP mag (1 e$^-$s$^{-1}$)')
     ax.grid()
     ax.set_title(f"{target} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'zp_vs_hfd.png')

@@ -20,9 +20,9 @@ warnings.filterwarnings("ignore")
 
 def main(args):
     output_path = Path(args.output_path)
-    # if output_path.exists():
-    #     print(f"Photometry table already exists at {output_path}.")
-    #     exit(1)
+    if output_path.exists():
+        print(f"Photometry table already exists at {output_path}.")
+        exit(1)
 
     print(f"Extracting photometry for {args.camera} camera...")
 

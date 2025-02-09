@@ -256,7 +256,7 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target, binning):
     y = pixel_coords[:, 1] * plate_scale * binning
 
     # reject more than 50 arcsec from start in any direction. making sure x, y, t are same length
-    x, y, times = zip(*[(x_, y_, t) for x_, y_, t in zip(x, y, times) if np.sqrt(x_ ** 2 + y_ ** 2) < 50])
+    x, y, times = zip(*[(x_, y_, t) for x_, y_, t in zip(x, y, times) if np.sqrt(x_ ** 2 + y_ ** 2) < 200])
 
     fig, ax = plt.subplots()
     delta_times = np.array([(t - times[0]).total_seconds() for t in times]) / 60

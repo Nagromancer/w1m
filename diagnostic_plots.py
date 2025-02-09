@@ -261,14 +261,17 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target, binning):
     x = pixel_coords[:, 0] * plate_scale * binning
     y = pixel_coords[:, 1] * plate_scale * binning
 
+    x = x if camera == 'blue' else -x
+    y = -y
+
     # reject more than 50 arcsec from start in any direction. making sure x, y, t are same length
     x, y, times = zip(*[(x_, y_, t) for x_, y_, t in zip(x, y, times) if np.sqrt(x_ ** 2 + y_ ** 2) < 200])
 
     fig, ax = plt.subplots()
     delta_times = np.array([(t - times[0]).total_seconds() for t in times]) / 60
     ax.scatter(x, y, c=delta_times)
-    ax.set_xlabel('X offset (arcsec)')
-    ax.set_ylabel('Y offset (arcsec)')
+    ax.set_xlabel('RA offset (arcsec)')
+    ax.set_ylabel('Dec offset (arcsec)')
     cbar = plt.colorbar(ax.scatter(x, y, c=delta_times))
     cbar.set_label('Time (minutes)')
     ax.set_title(f"{target} - {date} ({camera.capitalize()})")
@@ -279,8 +282,8 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target, binning):
     fig, ax = plt.subplots()
     c1 = "red" if camera == "red" else "blue"
     c2 = "purple" if camera == "red" else "green"
-    ax.plot(times, x, label='X', color=c1)
-    ax.plot(times, y, label='Y', color=c2)
+    ax.plot(times, x, label='RA', color=c1)
+    ax.plot(times, y, label='Dec', color=c2)
     ax.legend()
     ax.set_ylabel('Offset (arcsec)')
     ax.set_xlabel('Time (UTC)')

@@ -23,15 +23,22 @@ plt.rcParams['axes.titlesize'] = 32
 
 camera = "blue"
 bin_size = 5 / 1440  # 10 minutes in days
-date = "20250205"
+date = "20250207"
 
-aperture_radius = 15
+aperture_radius = 5
 
-target = "Gaia DR3 1571584539980588544"
-cat_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/reference_catalogues/{target}/{date}-{target}.fits")
-phot_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/{date}-{target}-{camera}-phot.fits")
-image_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/calibrated")
-phot_table = Table.read(phot_path)
+try:
+    target = "Gaia DR3 1571584539980588544"
+    cat_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/reference_catalogues/{target}/{date}-{target}.fits")
+    phot_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/{date}-{target}-{camera}-phot.fits")
+    image_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/calibrated")
+    phot_table = Table.read(phot_path)
+except FileNotFoundError:
+    target = target.replace(" ", "_")
+    cat_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/reference_catalogues/{target}/{date}-{target}.fits")
+    phot_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/{date}-{target}-{camera}-phot.fits")
+    image_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/calibrated")
+    phot_table = Table.read(phot_path)
 
 num_images = len(image_path.files("*.fits"))
 
@@ -39,26 +46,26 @@ cat = Table.read(cat_path)
 
 # correct catalogue by including only stars with as many measurements as there are images
 cat = cat[np.isin(np.array(cat["ID"]), np.array(phot_table["ID"]))]
-cat[cat["VALID"]].pprint_all()
 
 # create a reference light curve from the sum of all stars in the reference catalogue
 std_devs = []
 binned_std_devs = []
 average_fluxes = []
 for target_id in cat[cat["VALID"]]["ID"]:
-    # target_id = 1571584539980588544
+    target_id = 1571584539980588544
     target_coords = SkyCoord(cat[cat["ID"] == target_id]["RA"], cat[cat["ID"] == target_id]["DEC"], unit="deg")
     target_mag = cat[cat["ID"] == target_id]['BP_MAG' if camera == 'blue' else 'RP_MAG'][0]
 
     ref_cat = cat[cat["VALID"]]
     ref_cat = ref_cat[ref_cat["ID"] != target_id]
 
-    # ref_coords = SkyCoord(ref_cat["RA"], ref_cat["DEC"], unit="deg")
-    # ref_cat["SEPARATION"] = target_coords.separation(ref_coords).to("arcmin")
-    # ref_cat = ref_cat[ref_cat['BP_MAG' if camera == 'blue' else 'RP_MAG'] < target_mag + 2.0]
-    # ref_cat.sort("SEPARATION")
+    ref_coords = SkyCoord(ref_cat["RA"], ref_cat["DEC"], unit="deg")
+    ref_cat["SEPARATION"] = target_coords.separation(ref_coords).to("arcmin")
+    ref_cat = ref_cat[ref_cat['BP_MAG' if camera == 'blue' else 'RP_MAG'] < target_mag + 2.0]
+    ref_cat.sort("SEPARATION")
 
     ref_cat = ref_cat[:10]
+    ref_cat.pprint_all()
 
     ref_flux = np.zeros(num_images)
     for i, star in enumerate(ref_cat):
@@ -113,15 +120,16 @@ for target_id in cat[cat["VALID"]]["ID"]:
     binned_std_devs.append(binned_std_dev)
     average_fluxes.append(np.mean(fluxes))
 
-    # print(f"{target_mag:.2f} mag: Standard deviation: Trend - {trend_std_dev:.3f} ppt | Relative - {std_dev:.3f} ppt | Binned - {binned_std_dev:.3f} ppt")
-    # plt.errorbar(times, relative_flux, yerr=relative_flux_errs, fmt='o', color='black', markersize=5, alpha=0.1)
-    # plt.errorbar(binned_times, binned_relative_flux, yerr=binned_relative_flux_errs, fmt='o', color='black', markersize=5)
-    # # plt.plot(times, trend, color='red', lw=2)
-    # plt.title(f"Target {target_id} ({target_mag:.2f} mag) - {aperture_radius} px")
-    # plt.xlabel(f"Time (HJD - 2460000)")
-    # plt.ylabel(f"Relative Flux ({'Blue' if camera == 'blue' else 'Red'} Camera)")
-    # plt.show()
-    # plt.close()
+    print(f"{target_mag:.2f} mag: Standard deviation: Trend - {trend_std_dev:.3f} ppt | Relative - {std_dev:.3f} ppt | Binned - {binned_std_dev:.3f} ppt")
+    plt.errorbar(times, relative_flux, yerr=relative_flux_errs, fmt='o', color='black', markersize=5, alpha=0.1)
+    plt.errorbar(binned_times, binned_relative_flux, yerr=binned_relative_flux_errs, fmt='o', color='black', markersize=5)
+    # plt.plot(times, trend, color='red', lw=2)
+    plt.title(f"Target {target_id} ({target_mag:.2f} mag) - {aperture_radius} px")
+    plt.xlabel(f"Time (HJD - 2460000)")
+    plt.ylabel(f"Relative Flux ({'Blue' if camera == 'blue' else 'Red'} Camera)")
+    plt.show()
+    plt.close()
+    exit()
 
 plt.plot(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"], std_devs, 'o', color='black')
 plt.plot(cat[cat["VALID"]]["BP_MAG" if camera == "blue" else "RP_MAG"], binned_std_devs, 'o', color='red')

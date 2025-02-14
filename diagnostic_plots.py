@@ -90,7 +90,7 @@ def extract_zp(headers):
     zps = []
     for header in headers:
         try:
-            zps.append(header['ZP_10R'])
+            zps.append(header['ZP_20R'])
         except KeyError:
             zps.append(np.nan)
     return np.array(zps)

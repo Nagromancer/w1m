@@ -18,7 +18,7 @@ def check_images(files, output_path, camera, min_zp=23.5, max_hfd=4.5):
         header = fitsio.read_header(file)
 
         # check for wcs solution by looking for A_0_0 in header
-        if 'A_0_0' in header and 'HFD' in header and 'ZP_10R' in header and header['HFD'] < max_hfd and header['ZP_10R'] > gain_corrected_min_zp:
+        if 'A_0_0' in header and 'HFD' in header and 'ZP_20R' in header and header['HFD'] < max_hfd and header['ZP_20R'] > gain_corrected_min_zp:
             continue
 
         # print(f"Moving {file} to bad files directory.")

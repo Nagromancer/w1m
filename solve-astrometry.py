@@ -502,13 +502,13 @@ def prepare_frame(input_path, output_path, catalog, force3rd, reference_mag):
             output.header[k] = v
         hdu_list = [output]
 
-        # calculate flux with aperture radius of 10 pixels
+        # calculate flux with aperture radius of 20 pixels
         zp_calc_objects = objects[zp_filter]
-        flux10, fluxerr10, _ = sep.sum_circle(frame_data_corr, zp_calc_objects['X'], zp_calc_objects['Y'], 10.0 / args.binning,
+        flux20, fluxerr20, _ = sep.sum_circle(frame_data_corr, zp_calc_objects['X'], zp_calc_objects['Y'], 20.0 / args.binning,
                                               subpix=0, gain=1)
-        zp_calc_objects['FLUX10'] = flux10
-        zp_calc_objects['FLUXERR10'] = fluxerr10
-        zp_delta_mag = matched_cat[zp_filter][reference_mag] + 2.5 * np.log10(zp_calc_objects['FLUX10'] / frame_exptime)
+        zp_calc_objects['FLUX20'] = flux20
+        zp_calc_objects['FLUXERR20'] = fluxerr20
+        zp_delta_mag = matched_cat[zp_filter][reference_mag] + 2.5 * np.log10(zp_calc_objects['FLUX20'] / frame_exptime)
         zp_mean, _, zp_stddev = sigma_clipped_stats(zp_delta_mag, sigma=zp_clip_sigma)
 
     except Exception:
@@ -517,8 +517,8 @@ def prepare_frame(input_path, output_path, catalog, force3rd, reference_mag):
         return None, None, None, None, None
 
     # Add zero point to header
-    output.header['ZP_10r'] = zp_mean
-    output.header['ZPSTD_10r'] = zp_stddev
+    output.header['ZP_20r'] = zp_mean
+    output.header['ZPSTD_20r'] = zp_stddev
 
     # Add background level and RMS to header
     output.header['BACK-LVL'] = frame_bg.globalback
@@ -555,7 +555,7 @@ if __name__ == "__main__":
             header = fits.getheader(input_image)
 
             # check for existing solved images by looking for A_0_0
-            if 'A_0_0' in header and ('ZP_10r' in header or 'ZP_10R' in header):
+            if 'A_0_0' in header and ('ZP_20r' in header or 'ZP_20R' in header):
                 # print(f"{input_image} already solved, skipping...")
                 wcs_store.append(WCS(header))
                 continue

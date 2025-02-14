@@ -183,6 +183,22 @@ def plot_zp_vs_hfd(zps, hfds, output_path, camera, date, target):
     plt.close()
 
 
+def plot_zp_vs_airmass(zps, alts, output_path, camera, date, target):
+    fig, ax = plt.subplots()
+    zenith_angle = 90 - alts
+    airmass = 1 / np.cos(np.radians(zenith_angle))
+    ax.plot(airmass, zps, 'o', color=camera)
+    ax.set_xlabel('Airmass')
+    if camera == 'blue':
+        ax.set_ylabel('Mean ${G}_\mathrm{BP}$ ZP mag (1 e$^-$s$^{-1}$)')
+    else:
+        ax.set_ylabel('Mean ${G}_\mathrm{RP}$ ZP mag (1 e$^-$s$^{-1}$)')
+    ax.grid()
+    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
+    plt.savefig(output_path / 'zp_vs_airmass.png')
+    plt.close()
+
+
 def plot_sky_background_vs_time(times, sky_backgrounds, output_path, camera, date, target):
     fig, ax = plt.subplots()
     ax.plot(times, sky_backgrounds, color=camera)
@@ -345,6 +361,7 @@ def main():
     plot_zp_vs_time(times, zps, output_path, cam_colour, date, target)
     plot_airmass_vs_time(times, alt, output_path, date, target)
     plot_zp_vs_hfd(zps, hfds, output_path, cam_colour, date, target)
+    plot_zp_vs_airmass(zps, alt, output_path, cam_colour, date, target)
     plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output_path, date, target)
 
 

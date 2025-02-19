@@ -23,12 +23,13 @@ plt.rcParams['axes.titlesize'] = 32
 
 camera = "blue"
 bin_size = 5 / 1440  # 10 minutes in days
-date = "20250207"
+date = "20250216"
 
 aperture_radius = 5
 
+targ_id = 1571584539980588544
 try:
-    target = "Gaia DR3 1571584539980588544"
+    target = f"Gaia DR3 {targ_id}"
     cat_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/reference_catalogues/{target}/{date}-{target}.fits")
     phot_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/{date}-{target}-{camera}-phot.fits")
     image_path = Path(f"/Volumes/SanDisk-2TB-SSD/w1m/dates/{date}/{camera}/{target}/calibrated")
@@ -42,6 +43,11 @@ except FileNotFoundError:
 
 num_images = len(image_path.files("*.fits"))
 
+# get the HFDs so we can mask out bad images
+# headers = [fits.getheader(image) for image in sorted(image_path.files("*.fits"))]
+# hfds = [header["HFD"] for header in headers]
+# zps = [header["ZP_20R"] for header in headers]
+
 cat = Table.read(cat_path)
 
 # correct catalogue by including only stars with as many measurements as there are images
@@ -52,27 +58,37 @@ std_devs = []
 binned_std_devs = []
 average_fluxes = []
 for target_id in cat[cat["VALID"]]["ID"]:
-    target_id = 1571584539980588544
+    target_id = targ_id
     target_coords = SkyCoord(cat[cat["ID"] == target_id]["RA"], cat[cat["ID"] == target_id]["DEC"], unit="deg")
     target_mag = cat[cat["ID"] == target_id]['BP_MAG' if camera == 'blue' else 'RP_MAG'][0]
 
     ref_cat = cat[cat["VALID"]]
     ref_cat = ref_cat[ref_cat["ID"] != target_id]
 
-    ref_coords = SkyCoord(ref_cat["RA"], ref_cat["DEC"], unit="deg")
-    ref_cat["SEPARATION"] = target_coords.separation(ref_coords).to("arcmin")
-    ref_cat = ref_cat[ref_cat['BP_MAG' if camera == 'blue' else 'RP_MAG'] < target_mag + 2.0]
-    ref_cat.sort("SEPARATION")
+    # ref_coords = SkyCoord(ref_cat["RA"], ref_cat["DEC"], unit="deg")
+    # ref_cat["SEPARATION"] = target_coords.separation(ref_coords).to("arcmin")
+    # ref_cat = ref_cat[ref_cat['BP_MAG' if camera == 'blue' else 'RP_MAG'] < target_mag + 2.0]
+    # ref_cat.sort("SEPARATION")
 
     ref_cat = ref_cat[:10]
     ref_cat.pprint_all()
+
+
+    times, fluxes, flux_errs = get_light_curve(phot_table, target_id, aperture_radius)
+    # good_hfd_mask = (np.abs(hfds)) < 4
+    # good_zp_mask = np.array(zps) > 24.2
+    # good_phot_mask = good_hfd_mask & good_zp_mask
+    good_phot_mask = np.ones(len(times), dtype=bool)
+    times = times[good_phot_mask]
+    fluxes = fluxes[good_phot_mask]
+    flux_errs = flux_errs[good_phot_mask]
 
     ref_flux = np.zeros(num_images)
     for i, star in enumerate(ref_cat):
         _, flux, _ = get_light_curve(phot_table, star["ID"], aperture_radius)
         ref_flux += flux
+    ref_flux  = ref_flux[good_phot_mask]
 
-    times, fluxes, flux_errs = get_light_curve(phot_table, target_id, aperture_radius)
     times -= 2460000
     relative_flux = fluxes / ref_flux
     median_rel_flux = np.median(relative_flux)
@@ -86,6 +102,8 @@ for target_id in cat[cat["VALID"]]["ID"]:
     times = times[mask]
     relative_flux = relative_flux[mask]
     relative_flux_errs = relative_flux_errs[mask]
+
+
 
     flattened, trend = wotan.flatten(time=times, flux=relative_flux, method='biweight', window_length=0.02, return_trend=True)
 

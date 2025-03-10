@@ -120,7 +120,7 @@ def plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output
     ax.plot(times, wind_gusts, label='Wind gust')
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('Wind speed (kph)')
-    ax.set_title(f"{target} - {date}")
+    ax.set_title(f"{target.replace('_', ' ')} - {date}")
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.legend()
     ax.grid()
@@ -137,7 +137,7 @@ def plot_zp_vs_time(times, zps, output_path, camera, date, target):
     else:
         ax.set_ylabel('Mean ${G}_\mathrm{RP}$ ZP mag (1 e$^-$s$^{-1}$)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
-    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
+    ax.set_title(f"{target.replace('_', ' ')} - {date} ({camera.capitalize()})")
     ax.grid()
     plt.savefig(output_path / 'zp_vs_time.png')
     plt.close()
@@ -151,7 +151,7 @@ def plot_airmass_vs_time(times, alts, output_path, date, target):
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('Airmass')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
-    ax.set_title(f"{target} - {date}")
+    ax.set_title(f"{target.replace('_', ' ')} - {date}")
     ax.grid()
     plt.savefig(output_path / 'airmass_vs_time.png')
     plt.close()
@@ -164,7 +164,7 @@ def plot_hfd_vs_time(times, hfds, output_path, camera, date, target):
     ax.set_ylabel('HFD (arcsec)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.grid()
-    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
+    ax.set_title(f"{target.replace('_', ' ')} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'hfd_vs_time.png')
     plt.close()
 
@@ -178,7 +178,7 @@ def plot_zp_vs_hfd(zps, hfds, output_path, camera, date, target):
     else:
         ax.set_ylabel('Mean ${G}_\mathrm{RP}$ ZP mag (1 e$^-$s$^{-1}$)')
     ax.grid()
-    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
+    ax.set_title(f"{target.replace('_', ' ')} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'zp_vs_hfd.png')
     plt.close()
 
@@ -194,7 +194,7 @@ def plot_zp_vs_airmass(zps, alts, output_path, camera, date, target):
     else:
         ax.set_ylabel('Mean ${G}_\mathrm{RP}$ ZP mag (1 e$^-$s$^{-1}$)')
     ax.grid()
-    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
+    ax.set_title(f"{target.replace('_', ' ')} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'zp_vs_airmass.png')
     plt.close()
 
@@ -206,7 +206,7 @@ def plot_sky_background_vs_time(times, sky_backgrounds, output_path, camera, dat
     ax.set_ylabel('Sky background (e$^-$ s$^{-1}$ arcsec$^{-2}$)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.grid()
-    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
+    ax.set_title(f"{target.replace('_', ' ')} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'sky_background_vs_time.png')
     plt.close()
 
@@ -250,7 +250,8 @@ def plot_alt_az(alts, azs, times, obs_site_ephem, obs_site, output_path, date, t
                 ax.text(az_interp[-1] * np.pi / 180, alt_interp[-1], f"{times[i + 1].strftime('%H')}h", fontsize=20)
 
     ax.legend(loc="upper left", bbox_to_anchor=(-0.1, 1.05))
-    ax.set_title(f"{target} - {date}")
+    ax.set_title(f"{target.replace('_', ' ')} - {date}", pad=50)
+
     plt.tight_layout()
     plt.savefig(output_path / 'alt_az.png')
     plt.close()
@@ -290,7 +291,7 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target, binning):
     ax.set_ylabel('Dec offset (arcsec)')
     cbar = plt.colorbar(ax.scatter(x, y, c=delta_times))
     cbar.set_label('Time (minutes)')
-    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
+    ax.set_title(f"{target.replace('_', ' ')} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'tracking_error.png')
     plt.close()
 
@@ -305,7 +306,7 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target, binning):
     ax.set_xlabel('Time (UTC)')
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H:%M'))
     ax.grid()
-    ax.set_title(f"{target} - {date} ({camera.capitalize()})")
+    ax.set_title(f"{target.replace('_', ' ')} - {date} ({camera.capitalize()})")
     plt.savefig(output_path / 'tracking_error_vs_time.png')
     plt.close()
 

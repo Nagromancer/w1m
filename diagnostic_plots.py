@@ -1,15 +1,19 @@
-from astropy.io import fits
-import numpy as np
-from path import Path
 from astropy.wcs import WCS
 import warnings
 import argparse
 import matplotlib as mpl
 from astropy.time import Time
-import matplotlib.pyplot as plt
 from utilities import red_gain, blue_gain, plate_scale
 from astropy.coordinates import get_body, AltAz, EarthLocation
 import ephem
+import numpy as np
+import imageio
+import matplotlib.pyplot as plt
+from astropy.io import fits
+from path import Path
+from PIL import Image, ImageOps
+from io import BytesIO
+from tqdm import tqdm
 
 plt.rcParams['figure.figsize'] = [14, 9]
 plt.rcParams["font.family"] = "Times"
@@ -34,6 +38,12 @@ def read_headers(input_dir_1, input_dir_2):
     files.sort(key=lambda x: x.basename())
     headers = [fits.getheader(file) for file in files]
     return headers
+
+
+def get_images(input_dir_1, input_dir_2):
+    files = input_dir_1.files("*.fits") + input_dir_2.files("*.fits")
+    files.sort(key=lambda x: x.basename())
+    return files
 
 
 def read_wcs(headers):
@@ -311,6 +321,50 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target, binning):
     plt.close()
 
 
+def process_fits_image(fits_file):
+    """Load and process a single FITS image."""
+    with fits.open(fits_file) as hdul:
+        data = hdul[0].data  # Assuming image data is in the primary HDU
+        data = np.nan_to_num(data)  # Handle NaN values
+        data = np.clip(data, np.percentile(data, 1), np.percentile(data, 99))  # Contrast stretch
+    return data
+
+
+def pad_image_to_size(image, target_size=(1024, 1024)):
+    """Resize or pad the image to the exact target size."""
+    return ImageOps.pad(image, target_size, method=Image.Resampling.BICUBIC)
+
+
+def create_movie_from_fits(fits_files, output_path, fps):
+    """Convert a series of FITS images into a video."""
+    images = []
+
+    print(f"Creating movie from {len(fits_files)} FITS images...")
+    for fits_file in tqdm(fits_files):
+        data = process_fits_image(fits_file)
+        header = fits.getheader(fits_file)
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.imshow(data, cmap='gray', origin='lower')
+        ax.axis('off')
+        ax.text(0.05, 0.05, header['DATE-OBS'].replace("T", " "), color='red', transform=ax.transAxes, fontsize=18,
+                ha='left', va='top')
+
+        # Save figure to an in-memory buffer instead of a file
+        buf = BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+        plt.close(fig)
+        buf.seek(0)
+        image = Image.open(buf)
+
+        # Resize image to 1024x1024 for FFmpeg
+        image = pad_image_to_size(image, target_size=(1024, 1024))
+        images.append(image)
+
+    # Create video using FFmpeg format
+    imageio.mimsave(output_path / "movie.mp4", images, fps=fps, format='FFMPEG')
+    print(f"Movie saved as {output_path / 'movie.mp4'}")
+
+
 def main():
     warnings.filterwarnings("ignore")
 
@@ -364,6 +418,13 @@ def main():
     plot_zp_vs_hfd(zps, hfds, output_path, cam_colour, date, target)
     plot_zp_vs_airmass(zps, alt, output_path, cam_colour, date, target)
     plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output_path, date, target)
+
+    images = get_images(input_dir, reject_dir)
+    create_movie_from_fits(images, output_path, 30)
+
+    temp_frame = Path("temp_frame.png")
+    if temp_frame.exists():
+        temp_frame.remove()
 
 
 if __name__ == '__main__':

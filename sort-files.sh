@@ -3,7 +3,26 @@
 home_dir="/Volumes/SanDisk-2TB-SSD/w1m"
 bin="/Users/nagro/PycharmProjects/w1m"
 
-dates=($home_dir/dates/*)
+dates=("$home_dir"/dates/*)  # Expand correctly
+first_date="20250317"
+
+new_dates=()
+found_first=false
+for date in "${dates[@]}"; do
+  dir_name=$(basename "$date" | tr -d '[:space:]')  # Trim spaces/newlines
+  if [[ "$dir_name" == "$first_date" ]]; then
+    found_first=true
+  fi
+  if $found_first; then
+    new_dates+=("$date")
+  fi
+done
+
+dates=("${new_dates[@]}")  # Overwrite the original dates array with filtered values
+
+for date in $dates; do
+  echo $date
+done
 
 for date in $dates; do
   base_dir=$date

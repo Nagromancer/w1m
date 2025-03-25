@@ -4,7 +4,7 @@ home_dir="/Volumes/SanDisk-2TB-SSD/w1m"
 bin="/Users/nagro/PycharmProjects/w1m"
 
 dates=("$home_dir"/dates/*)  # Expand correctly
-first_date="20250317"
+first_date="20250322"
 
 new_dates=()
 found_first=false

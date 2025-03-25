@@ -23,10 +23,11 @@ plt.rcParams['axes.titlesize'] = 32
 
 camera = "blue"
 bin_size = 5 / 1440  # 10 minutes in days
-dates = ["20250205", "20250206", "20250207", "20250208", "20250213", "20250216", "20250218", "20250219", "20250220", "20250221", "20250222", "20250223", "20250224", "20250225", "20250226", "20250310", "20250317"]
-aperture_radius = 10
+dates = ["20250205", "20250206", "20250207", "20250208", "20250213", "20250216", "20250218", "20250219", "20250220", "20250221", "20250222", "20250223", "20250224", "20250225", "20250226", "20250310", "20250317", "20250318", "20250320", "20250321", "20250322", "20250324"]
+aperture_radius = 5
 targ_id = 1571584539980588544
 
+total_images = 0
 total_binned_times = []
 total_binned_fluxes = []
 total_binned_flux_errs = []
@@ -48,6 +49,7 @@ for date in dates:
         phot_table = Table.read(phot_path)
 
     num_images = len(image_path.files("*.fits"))
+    total_images += num_images
 
     cat = Table.read(cat_path)
     cat = cat[np.isin(np.array(cat["ID"]), np.array(phot_table["ID"]))]
@@ -133,6 +135,8 @@ for date in dates:
     total_fluxes += list(relative_flux)
     total_flux_errs += list(relative_flux_errs)
 
+print(f"Total images: {total_images}")
+print(f"Total exposure: {total_images / 120:.2f} hours")
 plt.errorbar(total_times, total_fluxes, yerr=total_flux_errs, fmt='o', color='black', markersize=5, alpha=0.1)
 plt.errorbar(total_binned_times, total_binned_fluxes, yerr=total_binned_flux_errs, fmt='o', color='black', markersize=5)
 # plt.plot(times, trend, color='red', lw=2)
@@ -171,7 +175,7 @@ total_times -= np.min(total_times)
 offset = 0.1
 folded_time = total_times / peak_period
 folded_binned_time = total_binned_times / peak_period
-fig = plt.figure(figsize=(15, 15))
+fig = plt.figure(figsize=(15, 20))
 plt.errorbar((folded_time % 1) * peak_period * 24, total_fluxes + offset * np.floor(folded_time), yerr=total_flux_errs, fmt='o', color='black', markersize=5, alpha=0.1)
 plt.errorbar((folded_binned_time % 1) * peak_period * 24, total_binned_fluxes + offset * np.floor(folded_binned_time), yerr=total_binned_flux_errs, fmt='o', color='black', markersize=5)
 
@@ -179,21 +183,16 @@ plt.title(f"SDSS1234+5606")
 plt.xlabel(f"Phase (hours)")
 plt.ylabel(f"Relative Flux $+$ Offset")
 lower_lim = 0.75
-upper_lim = 8
+upper_lim = 9
 plt.ylim(lower_lim, upper_lim)
 # plt.ylim(lower_lim, 1.2)
 # make a second y axis showing time, because the offset is showing time
 ax2 = plt.gca().twinx()
 ax2.set_ylabel("$T-T_0$ (days)")
 # time is the period * phase
-# 1 is 0 time
-# 1 + offset is 1 period
-# 1 + offset is 2 periods
 ax2.set_ylim(lower_lim, upper_lim)
-# ax2.set_ylim(0.75, 1.2)
-# time(relative_flux) = (relative_flux - 1) / offset * period
-# relative_flux(time) = time * offset / period + 1
-# put ticks every 5 days
+# ax2.set_ylim(lower_lim, 1.2)
+
 y_ticks_time = np.arange(0, 50, 5)
 y_ticks_flux = (y_ticks_time * offset / peak_period) + 1
 ax2.set_yticks(y_ticks_flux)

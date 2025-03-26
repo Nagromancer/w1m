@@ -4,7 +4,7 @@ home_dir="/Volumes/SanDisk-2TB-SSD/w1m"
 bin="/Users/nagro/PycharmProjects/w1m"
 
 dates=("$home_dir"/dates/*)  # Expand correctly
-first_date="20250322"
+first_date="20250325"
 
 new_dates=()
 found_first=false
@@ -49,7 +49,7 @@ for date in $dates; do
     mkdir -p $base_dir/blue/flat
 
     # move flat files to the appropriate directory
-    for cam in blue red; do
+    for cam in blue; do
       for file in $base_dir/$cam/*; do
           if [[ $file == *"-flat-"* ]]; then
               mv $file $base_dir/$cam/flat
@@ -59,7 +59,7 @@ for date in $dates; do
 
     # target name is given by the first part of the file name - everything before the second to last dash
     # create a directory for each target in the red and blue directories
-    for cam in blue red; do
+    for cam in blue; do
       for file in $base_dir/$cam/*; do
           target=$(echo $file | awk -F "-" '{print $1"-"$2"-"$3}')
           if [[ $target == *"flat"* ]]; then continue; fi  # don't treat the flat directory as a target
@@ -74,7 +74,7 @@ for date in $dates; do
   conda activate globular
 
   # calibrate the raw files
-  for cam in blue red; do
+  for cam in blue; do
     echo "Processing $cam camera on $date_only"
     # use fitsheader to get the binning of the flat files - just use one of the flat files
     # get the first flat file - make sure it's not the master flat called master-flat.fits which is in the flat directory

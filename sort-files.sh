@@ -4,7 +4,7 @@ home_dir="/Volumes/SanDisk-2TB-SSD/w1m"
 bin="/Users/nagro/PycharmProjects/w1m"
 
 dates=("$home_dir"/dates/*)  # Expand correctly
-first_date="20250325"
+first_date="20250504"
 
 new_dates=()
 found_first=false
@@ -32,7 +32,7 @@ for date in $dates; do
   # check to see if base_dir/red or base_dir/blue exists do not exist
   if [[ ! -d $base_dir/red ]] || [[ ! -d $base_dir/blue ]]; then
     # create a red and blue directory
-    mkdir -p $base_dir/red
+#    mkdir -p $base_dir/red
     mkdir -p $base_dir/blue
 
     # move red and blue files to the appropriate directory
@@ -45,7 +45,7 @@ for date in $dates; do
     done
 
     # create a flat directory in the red and blue directories
-    mkdir -p $base_dir/red/flat
+#    mkdir -p $base_dir/red/flat
     mkdir -p $base_dir/blue/flat
 
     # move flat files to the appropriate directory

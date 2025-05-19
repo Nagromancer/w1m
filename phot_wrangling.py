@@ -1,7 +1,6 @@
 from path import Path
 import numpy as np
 import matplotlib.pyplot as plt
-from astropy.table import Table
 from wotan import flatten
 from astropy.time import Time
 from astropy import units as u
@@ -90,7 +89,7 @@ tnt_time = (tnt_time_jd.tdb + ltt_bjd).jd
 
 
 # w1m data
-w1m_lc_path = Path("/Users/nagro/PycharmProjects/w1m/combined_lc_5.csv")
+w1m_lc_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/combined_lc_5.csv")
 w1m_lc = np.genfromtxt(w1m_lc_path, delimiter=",", names=True)
 
 w1m_time = w1m_lc["Time_BJD"]
@@ -111,31 +110,101 @@ tnt_detrended_flux_err = tnt_flux_err / tnt_trend
 w1m_flattened, w1m_trend = flatten(w1m_time, w1m_flux, window_length=0.1, method='biweight', return_trend=True)
 w1m_detrended_flux_err = w1m_flux_err / w1m_trend
 
-plt.errorbar(w1m_time, w1m_flattened, yerr=w1m_detrended_flux_err, fmt="o", color="blue", label="W1m")
-plt.errorbar(tnt_time, tnt_flattened, yerr=tnt_detrended_flux_err, fmt="o", color="red", label="TNT")
-plt.errorbar(tom_time, tom_flattened, yerr=tom_detrended_flux_err, fmt="o", color="green", label="Tom")
-plt.xlabel("BJD")
-plt.ylabel("Normalized Flux")
-plt.title("Light Curves")
-plt.legend()
-plt.show()
+# plt.errorbar(w1m_time, w1m_flattened, yerr=w1m_detrended_flux_err, fmt="o", color="blue", label="W1m")
+# plt.errorbar(tnt_time, tnt_flattened, yerr=tnt_detrended_flux_err, fmt="o", color="red", label="TNT")
+# plt.errorbar(tom_time, tom_flattened, yerr=tom_detrended_flux_err, fmt="o", color="green", label="Tom")
+# plt.xlabel("BJD")
+# plt.ylabel("Normalized Flux")
+# plt.title("Light Curves")
+# plt.legend()
+# plt.show()
 
-# save the detrended data
-# save the combined light curve as a csv
-combined_lc = Table()
-combined_lc["Time_BJD"] = tom_time
-combined_lc["Flux"] = tom_flattened
-combined_lc["Error"] = tom_detrended_flux_err
-combined_lc.write(f"detrended_tom.csv", overwrite=True)
+# convert fluxes to mags
+w1m_mag = -2.5 * np.log10(w1m_flux)
+w1m_mag_err = np.abs(w1m_mag - (-2.5 * np.log10(w1m_flux + w1m_flux_err)))
+w1m_detrended_mag = -2.5 * np.log10(w1m_flattened)
+w1m_detrended_mag_err = np.abs(w1m_detrended_mag - (-2.5 * np.log10(w1m_flattened + w1m_detrended_flux_err)))
 
-combined_lc = Table()
-combined_lc["Time_BJD"] = tnt_time
-combined_lc["Flux"] = tnt_flattened
-combined_lc["Error"] = tnt_detrended_flux_err
-combined_lc.write(f"detrended_tnt.csv", overwrite=True)
 
-combined_lc = Table()
-combined_lc["Time_BJD"] = w1m_time
-combined_lc["Flux"] = w1m_flattened
-combined_lc["Error"] = w1m_detrended_flux_err
-combined_lc.write(f"detrended_w1m.csv", overwrite=True)
+tnt_mag = -2.5 * np.log10(tnt_flux)
+tnt_mag_err = np.abs(tnt_mag - (-2.5 * np.log10(tnt_flux + tnt_flux_err)))
+tnt_detrended_mag = -2.5 * np.log10(tnt_flattened)
+tnt_detrended_mag_err = np.abs(tnt_detrended_mag - (-2.5 * np.log10(tnt_flattened + tnt_detrended_flux_err)))
+
+tom_mag = -2.5 * np.log10(tom_flux)
+tom_mag_err = np.abs(tom_mag - (-2.5 * np.log10(tom_flux + tom_flux_err)))
+tom_detrended_mag = -2.5 * np.log10(tom_flattened)
+tom_detrended_mag_err = np.abs(tom_detrended_mag - (-2.5 * np.log10(tom_flattened + tom_detrended_flux_err)))
+
+# save as csv files
+w1m_mag_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/w1m_mag.csv")
+with open(w1m_mag_path, "w") as f:
+    f.write("bjd,mag,err\n")
+    for i in range(len(w1m_time)):
+        f.write(f"{w1m_time[i]:.8f},{w1m_mag[i]:.6f},{w1m_mag_err[i]:.6f}\n")
+
+w1m_detr_mag_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/w1m_detrended_mag.csv")
+with open(w1m_detr_mag_path, "w") as f:
+    f.write("bjd,mag,err\n")
+    for i in range(len(w1m_time)):
+        f.write(f"{w1m_time[i]:.8f},{w1m_detrended_mag[i]:.6f},{w1m_detrended_mag_err[i]:.6f}\n")
+
+w1m_flux_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/w1m_flux.csv")
+with open(w1m_flux_path, "w") as f:
+    f.write("bjd,flux,err\n")
+    for i in range(len(w1m_time)):
+        f.write(f"{w1m_time[i]:.8f},{w1m_flux[i]:.6f},{w1m_flux_err[i]:.6f}\n")
+
+w1m_detr_flux_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/w1m_detrended_flux.csv")
+with open(w1m_detr_flux_path, "w") as f:
+    f.write("bjd,flux,err\n")
+    for i in range(len(w1m_time)):
+        f.write(f"{w1m_time[i]:.8f},{w1m_flattened[i]:.6f},{w1m_detrended_flux_err[i]:.6f}\n")
+
+tnt_mag_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/tnt_mag.csv")
+with open(tnt_mag_path, "w") as f:
+    f.write("bjd,mag,err\n")
+    for i in range(len(tnt_time)):
+        f.write(f"{tnt_time[i]:.8f},{tnt_mag[i]:.6f},{tnt_mag_err[i]:.6f}\n")
+
+tnt_detr_mag_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/tnt_detrended_mag.csv")
+with open(tnt_detr_mag_path, "w") as f:
+    f.write("bjd,mag,err\n")
+    for i in range(len(tnt_time)):
+        f.write(f"{tnt_time[i]:.8f},{tnt_detrended_mag[i]:.6f},{tnt_detrended_mag_err[i]:.6f}\n")
+
+tnt_flux_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/tnt_flux.csv")
+with open(tnt_flux_path, "w") as f:
+    f.write("bjd,flux,err\n")
+    for i in range(len(tnt_time)):
+        f.write(f"{tnt_time[i]:.8f},{tnt_flux[i]:.6f},{tnt_flux_err[i]:.6f}\n")
+
+tnt_detr_flux_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/tnt_detrended_flux.csv")
+with open(tnt_detr_flux_path, "w") as f:
+    f.write("bjd,flux,err\n")
+    for i in range(len(tnt_time)):
+        f.write(f"{tnt_time[i]:.8f},{tnt_flattened[i]:.6f},{tnt_detrended_flux_err[i]:.6f}\n")
+
+tom_mag_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/tom_mag.csv")
+with open(tom_mag_path, "w") as f:
+    f.write("bjd,mag,err\n")
+    for i in range(len(tom_time)):
+        f.write(f"{tom_time[i]:.8f},{tom_mag[i]:.6f},{tom_mag_err[i]:.6f}\n")
+
+tom_detr_mag_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/tom_detrended_mag.csv")
+with open(tom_detr_mag_path, "w") as f:
+    f.write("bjd,mag,err\n")
+    for i in range(len(tom_time)):
+        f.write(f"{tom_time[i]:.8f},{tom_detrended_mag[i]:.6f},{tom_detrended_mag_err[i]:.6f}\n")
+
+tom_flux_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/tom_flux.csv")
+with open(tom_flux_path, "w") as f:
+    f.write("bjd,flux,err\n")
+    for i in range(len(tom_time)):
+        f.write(f"{tom_time[i]:.8f},{tom_flux[i]:.6f},{tom_flux_err[i]:.6f}\n")
+
+tom_detr_flux_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/tom_detrended_flux.csv")
+with open(tom_detr_flux_path, "w") as f:
+    f.write("bjd,flux,err\n")
+    for i in range(len(tom_time)):
+        f.write(f"{tom_time[i]:.8f},{tom_flattened[i]:.6f},{tom_detrended_flux_err[i]:.6f}\n")

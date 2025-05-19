@@ -419,12 +419,12 @@ def main():
     plot_zp_vs_airmass(zps, alt, output_path, cam_colour, date, target)
     plot_wind_speed_vs_time(times, wind_speeds, median_winds, wind_gusts, output_path, date, target)
 
-    images = get_images(input_dir, reject_dir)
-    create_movie_from_fits(images, output_path, 30)
-
-    temp_frame = Path("temp_frame.png")
-    if temp_frame.exists():
-        temp_frame.remove()
+    # images = get_images(input_dir, reject_dir)
+    # create_movie_from_fits(images, output_path, 30)
+    #
+    # temp_frame = Path("temp_frame.png")
+    # if temp_frame.exists():
+    #     temp_frame.remove()
 
 
 if __name__ == '__main__':

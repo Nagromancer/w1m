@@ -156,16 +156,17 @@ initial_poses = [(0.0756, 1.0056, -0.0237, 0.0004, 0.0015, 0.1169, 0.0015, 0.002
                  (0.0419, -0.2091, 29.0, 0.0024, 0.0062, 0.2237),
                  (1,),
                  (1,),
-                 (-0.2458, 14.9733, 56.7549, 0.0007, 0.0089, 0.1977)
+                 (-0.2458, 14.9733, 56.7549, 0.0007, 0.0089, 0.1977),
+                 (0, 1, 59.84, 0.0007, 0.0089, 0.1977),
                  ]
-initial_poses = [(-0.1228, 3.5104, 20.3706, 0.0061, 0.0006, 0.2812, 20.4689, 0.001, 0.0029, 0.3111),
-                 (-0.0648, 2.3921, 21.3403, 0.0012, 0.0035, 0.1938),
-                 (-0.0135, 1.6024, 44.4185, 0.0009, 0.0082, 0.1765),
-                 (-0.1883, 9.7497, 46.2679, 0.0002, 0.0394, 0.0815),
-                 (-0.2032, 10.676, 47.5039, 0.0022, 0.0102, 0.1594),
-                 (1,),
-                 (-0.011, 1.5462, 49.3553, 0.0016, 0.005, 0.1807),
-                 ]
+# initial_poses = [(-0.1228, 3.5104, 20.3706, 0.0061, 0.0006, 0.2812, 20.4689, 0.001, 0.0029, 0.3111),
+#                  (-0.0648, 2.3921, 21.3403, 0.0012, 0.0035, 0.1938),
+#                  (-0.0135, 1.6024, 44.4185, 0.0009, 0.0082, 0.1765),
+#                  (-0.1883, 9.7497, 46.2679, 0.0002, 0.0394, 0.0815),
+#                  (-0.2032, 10.676, 47.5039, 0.0022, 0.0102, 0.1594),
+#                  (1,),
+#                  (-0.011, 1.5462, 49.3553, 0.0016, 0.005, 0.1807),
+#                  ]
 
 print("t_min, t_min_-, t_min_+, depth, depth_-, depth_+, width, width_-, width+, area, area_-, area_+, t0, t0_-, t0_+, ti, ti_-, ti_+, te, te_-, te_+, a, a_-, a_+, w1m, tom, tnt")
 for night, initial_pos in enumerate(initial_poses):
@@ -175,12 +176,12 @@ for night, initial_pos in enumerate(initial_poses):
     num_parameters = len(initial_pos)
     pos = initial_pos + 1e-5 * np.random.randn(48, num_parameters)
 
-    tom_flux_err_nights = np.split(tom_flux_err, np.where(np.diff(tom_time) > 0.5)[0] + 1)
-    tom_flux_nights = np.split(tom_flux, np.where(np.diff(tom_time) > 0.5)[0] + 1)
-    tom_time_nights = np.split(tom_time, np.where(np.diff(tom_time) > 0.5)[0] + 1)
-    times = tom_time_nights[night]
-    fluxes = tom_flux_nights[night]
-    flux_err = tom_flux_err_nights[night]
+    tnt_flux_err_nights = np.split(tnt_flux_err, np.where(np.diff(tnt_time) > 0.5)[0] + 1)
+    tnt_flux_nights = np.split(tnt_flux, np.where(np.diff(tnt_time) > 0.5)[0] + 1)
+    tnt_time_nights = np.split(tnt_time, np.where(np.diff(tnt_time) > 0.5)[0] + 1)
+    times = tnt_time_nights[night]
+    fluxes = tnt_flux_nights[night]
+    flux_err = tnt_flux_err_nights[night]
 
     plt.errorbar(times, fluxes, yerr=flux_err, fmt='o', color=colours[1], label="Data", alpha=0.05)
     plt.plot(times, model_function(initial_pos, times), 'g-', label="Initial Guess")
@@ -188,20 +189,18 @@ for night, initial_pos in enumerate(initial_poses):
     plt.ylabel("Flux")
     plt.grid()
     plt.show()
-    # exit()
-
 
     nwalkers, ndim = pos.shape
-    if not Path(sampler_path / f'sampler_tom_{night}.pkl').exists():
+    if not Path(sampler_path / f'sampler_tnt_{night}.pkl').exists():
         sampler = emcee.EnsembleSampler(
             nwalkers, ndim, log_probability, args=((times), (fluxes), (flux_err)))
         sampler.run_mcmc(pos, 10000, progress=True)
 
         # pickle the sampler
-        with open(sampler_path / f'sampler_tom_{night}.pkl', 'wb') as f:
+        with open(sampler_path / f'sampler_tnt_{night}.pkl', 'wb') as f:
             pickle.dump(sampler, f)
     else:
-        with open(sampler_path / f'sampler_tom_{night}.pkl', 'rb') as f:
+        with open(sampler_path / f'sampler_tnt_{night}.pkl', 'rb') as f:
             sampler = pickle.load(f)
 
     samples = sampler.get_chain()
@@ -278,7 +277,7 @@ for night, initial_pos in enumerate(initial_poses):
         print(f"{best_fits[4 * i + 2] + ephemeris:.5f},{lower_uncertainties[4 * i + 2]:.5f},{upper_uncertainties[4 * i + 2]:.5f}", end=",")
         print(f"{best_fits[4 * i + 3]:.5f},{lower_uncertainties[4 * i + 3]:.5f},{upper_uncertainties[4 * i + 3]:.5f}", end=",")
         print(f"{best_fits[4 * i + 4]:.5f},{lower_uncertainties[4 * i + 4]:.5f},{upper_uncertainties[4 * i + 4]:.5f}", end=",")
-        print(f"{best_fits[4 * i + 5]:.5f},{lower_uncertainties[4 * i + 5]:.5f},{upper_uncertainties[4 * i + 5]:.5f},0,1,0")
+        print(f"{best_fits[4 * i + 5]:.5f},{lower_uncertainties[4 * i + 5]:.5f},{upper_uncertainties[4 * i + 5]:.5f},0,0,1")
     # print()
     # print([round(x, 4) for x in best_fits])
 

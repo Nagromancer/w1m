@@ -261,7 +261,7 @@ if __name__ == "__main__":
                         help='Example image to extract epoch from.')
     parser.add_argument('--epoch',
                         type=str,
-                        default='2025-02-01T0:0:0',
+                        default='2025-05-01T0:0:0',
                         help='Reference datetime string for proper-motion calculations.')
     parser.add_argument('--calibration-limits',
                         metavar=('MIN', 'MAX'),

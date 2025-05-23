@@ -272,14 +272,22 @@ def plot_tracking_error(wcs, times, output_path, camera, date, target, binning):
     if all([w is None for w in wcs]):
         return
 
-    times = [t for t, w in zip(times, wcs) if w is not None]
+    unvalidated_times = [t for t, w in zip(times, wcs) if w is not None]
     wcs = [w for w in wcs if w is not None]
 
     # get crval of first wcs
     initial_ra, initial_dec = wcs[0].wcs.crval
 
     # transform all wcs to pixel coordinates
-    pixel_coords = [w.all_world2pix(initial_ra, initial_dec, 0) for w in wcs]
+    pixel_coords = []
+    times = []
+    for t, w in zip(unvalidated_times, wcs):
+        try:
+            pixel_coords.append(w.all_world2pix(initial_ra, initial_dec, 0))
+        except Exception:
+            # if the wcs is not valid, skip it
+            continue
+        times.append(t)
 
     # convert to 2d array
     pixel_coords = np.array(pixel_coords)

@@ -1,7 +1,7 @@
 from path import Path
 import numpy as np
 import matplotlib.pyplot as plt
-from wotan import flatten
+from wotan import flatten, transit_mask
 from astropy.time import Time
 from astropy import units as u
 import astropy.coordinates as coord
@@ -14,12 +14,99 @@ plt.rcParams['text.usetex'] = True
 plt.rcParams['axes.titlesize'] = 32
 plt.rcParams['figure.dpi'] = 200
 
-bin_size = 5 / 1440
-
 # Load your data
 lc_dir = Path("/Users/nagro/PycharmProjects/w1m/sdss1234_lightcurves")
 tnt_loc = coord.EarthLocation(lat=18.590555 * u.deg, lon=98.486666 * u.deg, height=2457 * u.m)
+gtc_loc = coord.EarthLocation(lat=28.75661 * u.deg, lon=-17.89203 * u.deg, height=2267 * u.m)
 target_coord = coord.SkyCoord(ra=188.635570, dec=56.111952, unit="deg")  # SDSS1234+5606
+
+# gtc data
+lc_files = sorted(lc_dir.glob("*.asc"))
+gtc_time = []
+gtc_flux = []
+gtc_flattened_flux = []
+gtc_flux_err = []
+gtc_flattened_flux_err = []
+
+colours = ["violet", "blue", "green", "orange", "red"]
+filters = ["u", "g", "r", "i", "z"]
+
+for file, c, filter in zip(lc_files, colours, filters):
+    gtc_time_i, gtc_flux_i, gtc_err_i = np.loadtxt(file, unpack=True, usecols=(0, 2, 3), skiprows=0)
+
+    gtc_time_mjd = Time(gtc_time_i, format="mjd", scale="utc")
+    gtc_time_jd = Time(gtc_time_mjd.jd, format="jd", scale="utc")
+    ltt_bjd = gtc_time_jd.light_travel_time(target_coord, 'barycentric', location=gtc_loc)
+    gtc_time_i = (gtc_time_jd.tdb + ltt_bjd).jd
+
+    mask = transit_mask(
+        time=gtc_time_i,
+        period=14.803 / 24,
+        duration=0.01,
+        T0=2460824.491)
+
+    gtc_flux_median = np.median(gtc_flux_i)
+    gtc_flux_i /= gtc_flux_median
+    gtc_err_i /= gtc_flux_median
+
+    gtc_flux_flattened_i, gtc_trend_i = flatten(gtc_time_i, gtc_flux_i, window_length=0.02, method='cosine', return_trend=True, mask=mask)
+    gtc_flat_err_i = gtc_err_i / gtc_trend_i
+
+    plot = False
+    if plot:
+        plot_time = (gtc_time_i - 2460824.5) * 1440
+        plt.errorbar(plot_time, gtc_flux_i, yerr=gtc_flat_err_i, fmt="o", color=c,
+                     label="GTC White Light Curve", zorder=1, alpha=0.5)
+        plt.plot(plot_time, gtc_trend_i, 'k-')
+        plt.title(f"GTC {filter.upper()} Light Curve")
+        plt.fill_between(plot_time, 0.5, 1.5, where=mask, color='gray', alpha=0.5, label='Transit Mask', zorder=0)
+        # plt.xlim(-25, 0)
+        plt.ylim(0.81, 1.15)
+        plt.grid()
+        plt.show()
+
+
+        plt.errorbar(plot_time, gtc_flux_flattened_i, yerr=gtc_flat_err_i, fmt="o", color=c,
+                     label="GTC White Light Curve Flattened", zorder=1, alpha=0.5)
+        plt.xlabel("BJD - 2460824.5 (minutes)")
+        plt.ylabel("Normalized Flux")
+        plt.title(f"GTC {filter.upper()} Flattened Light Curve")
+        plt.axhline(1.0, color='k', linestyle='--', label='Baseline')
+        plt.ylim(0.81, 1.15)
+        # plt.xlim(-25, 0)
+        plt.grid()
+        plt.show()
+    print(f"{filter} - {np.sqrt(np.mean(gtc_flat_err_i**2)):.2%} photometric error")
+
+    gtc_time.append(gtc_time_i)
+    gtc_flux.append(gtc_flux_i)
+    gtc_flux_err.append(gtc_err_i)
+    gtc_flattened_flux.append(gtc_flux_flattened_i)
+    gtc_flattened_flux_err.append(gtc_flat_err_i)
+
+gtc_time = np.array(gtc_time).mean(axis=0)  # average time across all CCDs (in practice they are the same)
+gtc_flux = np.array(gtc_flux)
+gtc_flux_err = np.array(gtc_flux_err)
+gtc_flattened_flux = np.array(gtc_flattened_flux)
+gtc_flattened_flux_err = np.array(gtc_flattened_flux_err)
+
+# create a white light curve by weighted averaging the fluxes from all CCDs
+weights = 1 / gtc_flux_err**2
+gtc_white_flux = np.sum(gtc_flux * weights, axis=0) / np.sum(weights, axis=0)
+gtc_white_flux_err = np.sqrt(1 / np.sum(weights, axis=0))
+
+gtc_white_flattened, gtc_white_trend = flatten(gtc_time, gtc_white_flux, window_length=0.01, method='cosine', return_trend=True, mask=mask)
+gtc_white_detrended_flux_err = gtc_white_flux_err / gtc_white_trend
+
+print(f"combined - {np.sqrt(np.mean(gtc_white_detrended_flux_err**2)):.2%} photometric error")
+
+# combine the white light into a single array
+gtc_flux = np.concatenate((gtc_white_flux[np.newaxis, :], gtc_flux), axis=0)
+gtc_flux_err = np.concatenate((gtc_white_flux_err[np.newaxis, :], gtc_flux_err), axis=0)
+
+gtc_flattened_flux = np.concatenate((gtc_white_flattened[np.newaxis, :], gtc_flattened_flux), axis=0)
+gtc_flattened_flux_err = np.concatenate((gtc_white_detrended_flux_err[np.newaxis, :], gtc_flattened_flux_err), axis=0)
+
 
 # tom's data
 lc_files = sorted(lc_dir.glob("*tom.dat"))
@@ -125,7 +212,6 @@ w1m_mag_err = np.abs(w1m_mag - (-2.5 * np.log10(w1m_flux + w1m_flux_err)))
 w1m_detrended_mag = -2.5 * np.log10(w1m_flattened)
 w1m_detrended_mag_err = np.abs(w1m_detrended_mag - (-2.5 * np.log10(w1m_flattened + w1m_detrended_flux_err)))
 
-
 tnt_mag = -2.5 * np.log10(tnt_flux)
 tnt_mag_err = np.abs(tnt_mag - (-2.5 * np.log10(tnt_flux + tnt_flux_err)))
 tnt_detrended_mag = -2.5 * np.log10(tnt_flattened)
@@ -136,7 +222,36 @@ tom_mag_err = np.abs(tom_mag - (-2.5 * np.log10(tom_flux + tom_flux_err)))
 tom_detrended_mag = -2.5 * np.log10(tom_flattened)
 tom_detrended_mag_err = np.abs(tom_detrended_mag - (-2.5 * np.log10(tom_flattened + tom_detrended_flux_err)))
 
+gtc_mag = -2.5 * np.log10(gtc_flux)
+gtc_mag_err = np.abs(gtc_mag - (-2.5 * np.log10(gtc_flux + gtc_flux_err)))
+gtc_detrended_mag = -2.5 * np.log10(gtc_flattened_flux)
+gtc_detrended_mag_err = np.abs(gtc_detrended_mag - (-2.5 * np.log10(gtc_flattened_flux + gtc_flattened_flux_err)))
+
 # save as csv files
+gtc_mag_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/gtc_mag.csv")
+with open(gtc_mag_path, "w") as f:
+    f.write("bjd,mag,err,mag_u,err_u,mag_g,err_g,mag_r,err_r,mag_i,err_i,mag_z,err_z\n")
+    for i in range(len(gtc_time)):
+        f.write(f"{gtc_time[i]:.8f},{gtc_mag[0, i]:.6f},{gtc_mag_err[0, i]:.6f},{gtc_mag[1, i]:.6f},{gtc_mag_err[1, i]:.6f},{gtc_mag[2, i]:.6f},{gtc_mag_err[2, i]:.6f},{gtc_mag[3, i]:.6f},{gtc_mag_err[3, i]:.6f},{gtc_mag[4, i]:.6f},{gtc_mag_err[4, i]:.6f},{gtc_mag[5, i]:.6f},{gtc_mag_err[5, i]:.6f}\n")
+
+gtc_detr_mag_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/gtc_detrended_mag.csv")
+with open(gtc_detr_mag_path, "w") as f:
+    f.write("bjd,mag,err,mag_u,err_u,mag_g,err_g,mag_r,err_r,mag_i,err_i,mag_z,err_z\n")
+    for i in range(len(gtc_time)):
+        f.write(f"{gtc_time[i]:.8f},{gtc_detrended_mag[0, i]:.6f},{gtc_detrended_mag_err[0, i]:.6f},{gtc_detrended_mag[1, i]:.6f},{gtc_detrended_mag_err[1, i]:.6f},{gtc_detrended_mag[2, i]:.6f},{gtc_detrended_mag_err[2, i]:.6f},{gtc_detrended_mag[3, i]:.6f},{gtc_detrended_mag_err[3, i]:.6f},{gtc_detrended_mag[4, i]:.6f},{gtc_detrended_mag_err[4, i]:.6f},{gtc_detrended_mag[5, i]:.6f},{gtc_detrended_mag_err[5, i]:.6f}\n")
+
+gtc_flux_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/gtc_flux.csv")
+with open(gtc_flux_path, "w") as f:
+    f.write("bjd,flux,err,flux_u,err_u,flux_g,err_g,flux_r,err_r,flux_i,err_i,flux_z,err_z\n")
+    for i in range(len(gtc_time)):
+        f.write(f"{gtc_time[i]:.8f},{gtc_flux[0, i]:.6f},{gtc_flux_err[0, i]:.6f},{gtc_flux[1, i]:.6f},{gtc_flux_err[1, i]:.6f},{gtc_flux[2, i]:.6f},{gtc_flux_err[2, i]:.6f},{gtc_flux[3, i]:.6f},{gtc_flux_err[3, i]:.6f},{gtc_flux[4, i]:.6f},{gtc_flux_err[4, i]:.6f},{gtc_flux[5, i]:.6f},{gtc_flux_err[5, i]:.6f}\n")
+
+gtc_detr_flux_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/gtc_detrended_flux.csv")
+with open(gtc_detr_flux_path, "w") as f:
+    f.write("bjd,flux,err,flux_u,err_u,flux_g,err_g,flux_r,err_r,flux_i,err_i,flux_z,err_z\n")
+    for i in range(len(gtc_time)):
+        f.write(f"{gtc_time[i]:.8f},{gtc_flattened_flux[0, i]:.6f},{gtc_flattened_flux_err[0, i]:.6f},{gtc_flattened_flux[1, i]:.6f},{gtc_flattened_flux_err[1, i]:.6f},{gtc_flattened_flux[2, i]:.6f},{gtc_flattened_flux_err[2, i]:.6f},{gtc_flattened_flux[3, i]:.6f},{gtc_flattened_flux_err[3, i]:.6f},{gtc_flattened_flux[4, i]:.6f},{gtc_flattened_flux_err[4, i]:.6f},{gtc_flattened_flux[5, i]:.6f},{gtc_flattened_flux_err[5, i]:.6f}\n")
+
 w1m_mag_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/w1m_mag.csv")
 with open(w1m_mag_path, "w") as f:
     f.write("bjd,mag,err\n")

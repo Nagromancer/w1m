@@ -11,16 +11,16 @@ import warnings
 import matplotlib.pyplot as plt
 from photutils.aperture import CircularAperture, aperture_photometry
 from photutils.utils import calc_total_error
-from utilities import plate_scale, red_gain, blue_gain
+from utilities import plate_scale, blue_gain
 import argparse
 
 
-def measure_hfd(files, camera, binning, plot=True, sep_threshold=1.3, verbose=False):
+def measure_hfd(files, binning, plot=True, sep_threshold=1.3, verbose=False):
     failed_extractions = 0
     failed_writes = 0
     failed_reads = 0
 
-    gain = red_gain if camera == 'red' else blue_gain
+    gain = blue_gain
 
     print(f"Measuring HFD for {len(files)} files.")
     for file in tqdm.tqdm(files, file=sys.stdout):
@@ -130,13 +130,12 @@ def main():
 
     parser = argparse.ArgumentParser(description='Analyse background-subtracted images')
     parser.add_argument('input_dir', type=str, help='Directory containing input images.')
-    parser.add_argument('camera', type=str, choices=['red', 'blue'], help='Camera colour.')
     parser.add_argument('binning', type=int, help='Binning factor.')
     args = parser.parse_args()
 
     input_dir = Path(args.input_dir)
     image_files = sorted(input_dir.files())
-    measure_hfd(image_files, camera=args.camera, binning=args.binning, plot=False)
+    measure_hfd(image_files, binning=args.binning, plot=False)
 
 
 if __name__ == '__main__':

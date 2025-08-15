@@ -100,7 +100,7 @@ def extract_zp(headers):
     zps = []
     for header in headers:
         try:
-            zps.append(header['ZP_20R'])
+            zps.append(header['ZP_20R_e-'])
         except KeyError:
             zps.append(np.nan)
     return np.array(zps)
@@ -393,7 +393,7 @@ def main():
         return
 
     # get date from parent directory
-    date = input_dir.parent.parent.parent.basename()
+    date = input_dir.parent.parent.basename()
     date = f"{date[:4]}-{date[4:6]}-{date[6:]}"
 
     target = input_dir.parent.basename()
@@ -404,7 +404,7 @@ def main():
     alt, az = extract_alt_az(headers)
     gain, cam_colour = get_camera_gain(input_dir.files('*.fits') + reject_dir.files('*.fits'))
     sky_backgrounds = extract_sky_background(headers, gain, plate_scale, args.binning)
-    zps = extract_zp(headers) + 2.5 * np.log10(gain)
+    zps = extract_zp(headers)
     wind_speeds, median_winds, wind_gusts = extract_wind_speed(headers)
 
     obs_site_ephem = ephem.Observer()

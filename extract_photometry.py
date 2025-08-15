@@ -24,10 +24,10 @@ def main(args):
         print(f"Photometry table already exists at {output_path}.")
         exit(1)
 
-    print(f"Extracting photometry for {args.camera} camera...")
+    print(f"Extracting photometry...")
 
     # get target name
-    gain = red_gain if args.camera == "red" else blue_gain
+    gain = blue_gain
 
     la_palma = coord.EarthLocation(lat=28.760255 * u.deg, lon=-17.879284 * u.deg, height=2396 * u.m)
 
@@ -47,7 +47,7 @@ def main(args):
     for image_file in tqdm(image_files):
 
         # open image
-        aperture_radii = [5, 10, 15, 20, 25]  # unbinned pixels
+        aperture_radii = [5, 10, 15, 20]  # unbinned pixels
         with fits.open(image_file) as hdul:
             frame = hdul[0]
             data = frame.data.astype(float)
@@ -86,6 +86,7 @@ def main(args):
             phot_table_i["BJD"] = [bjd] * len(image_cat)
 
             for r in aperture_radii:
+                zp = frame.header.get(f"ZP_{r}R_E-", 0)  # zero point in mag
                 ap = CircularAperture(pixel_coords.T, r=r / args.binning)
                 # calculate total error
                 error = np.sqrt(frame_bg_rms**2 + frame_data_corr / gain)
@@ -99,12 +100,19 @@ def main(args):
                 phot_table_i_r.rename_column("aperture_sum", f"FLUX_{r}")
                 phot_table_i_r.rename_column("aperture_sum_err", f"FLUX_ERR_{r}")
 
+
+                # add magnitude as well
+                phot_table_i_r[f"MAG_{r}"] = -2.5 * np.log10(phot_table_i_r[f"FLUX_{r}"]) + zp
+                phot_table_i_r[f"MAG_ERR_{r}"] = np.abs(phot_table_i_r[f"MAG_{r}"] - (-2.5 * np.log10(phot_table_i_r[f"FLUX_{r}"] + phot_table_i_r[f"FLUX_ERR_{r}"]) + zp))
+
                 # add units of electrons/s
                 phot_table_i_r[f"FLUX_{r}"].unit = u.electron / u.s
                 phot_table_i_r[f"FLUX_ERR_{r}"].unit = u.electron / u.s
+                phot_table_i_r[f"MAG_{r}"].unit = u.mag
+                phot_table_i_r[f"MAG_ERR_{r}"].unit = u.mag
 
                 # add flux and flux error to the table_i (ONLY these columns)
-                phot_table_i = hstack([phot_table_i, phot_table_i_r[[f"FLUX_{r}", f"FLUX_ERR_{r}"]]])
+                phot_table_i = hstack([phot_table_i, phot_table_i_r[[f"FLUX_{r}", f"FLUX_ERR_{r}", f"MAG_{r}", f"MAG_ERR_{r}"]]])
 
             phot_table = vstack([phot_table, phot_table_i])
     # save photometry table
@@ -114,6 +122,7 @@ def main(args):
     cat = cat[cat["MEASUREMENTS"] == num_images]
     # correct catalogue by including only stars with as many measurements as there are images
     phot_table = phot_table[np.isin(np.array(phot_table["ID"]), np.array(cat["ID"]))]
+    phot_table.pprint_all()
     phot_table.write(output_path, overwrite=True)
 
 
@@ -122,7 +131,6 @@ if __name__ == '__main__':
     parser.add_argument('cat_path', type=str, help='Path to the catalogue.')
     parser.add_argument('img_dir', type=str, help='Base directory containing the images.')
     parser.add_argument('output_path', type=str, help='Output directory for photometry table.')
-    parser.add_argument('camera', type=str, choices=['red', 'blue'], help='Camera colour.')
     parser.add_argument('binning', type=int, help='Binning factor.')
     args = parser.parse_args()
     main(args)

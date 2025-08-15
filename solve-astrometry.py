@@ -17,7 +17,7 @@ from astropy.stats import sigma_clip, sigma_clipped_stats
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, Column
 from matplotlib import pyplot as plt
-from utilities import plate_scale
+from utilities import plate_scale, blue_gain
 
 warnings.filterwarnings("ignore")
 
@@ -38,10 +38,6 @@ def arg_parse():
     p.add_argument('binning',
                    help='Binning of the detector',
                    type=int,)
-    p.add_argument('camera',
-                   type=str,
-                   choices=['red', 'blue'],
-                   help='Camera colour.')
     p.add_argument('--indir',
                    help='location of input files',
                    default='.',
@@ -494,6 +490,8 @@ def prepare_frame(input_path, output_path, catalog, force3rd, reference_mag):
 
         updated_wcs_header, xy_residuals = check_wcs_corners(wcs_header, objects[zp_filter],
                                                              matched_cat[zp_filter], frame_data.shape)
+        # get the standard deviation of the xy residuals
+        xy_residuals_rms = np.sqrt(np.mean(np.square(xy_residuals[xy_residuals < 10]))) * args.binning * plate_scale
 
         # update the header from the final fit
         wcs_header.update(updated_wcs_header)
@@ -504,28 +502,62 @@ def prepare_frame(input_path, output_path, catalog, force3rd, reference_mag):
 
         # calculate flux with aperture radius of 20 pixels
         zp_calc_objects = objects[zp_filter]
+
         flux20, fluxerr20, _ = sep.sum_circle(frame_data_corr, zp_calc_objects['X'], zp_calc_objects['Y'], 20.0 / args.binning,
                                               subpix=0, gain=1)
-        zp_calc_objects['FLUX20'] = flux20
-        zp_calc_objects['FLUXERR20'] = fluxerr20
-        zp_delta_mag = matched_cat[zp_filter][reference_mag] + 2.5 * np.log10(zp_calc_objects['FLUX20'] / frame_exptime)
-        zp_mean, _, zp_stddev = sigma_clipped_stats(zp_delta_mag, sigma=zp_clip_sigma)
+        flux20 *= blue_gain  # convert to electrons
+        fluxerr20 *= blue_gain  # convert to electrons
+        flux15, fluxerr15, _ = sep.sum_circle(frame_data_corr, zp_calc_objects['X'], zp_calc_objects['Y'],
+                                              15.0 / args.binning,
+                                              subpix=0, gain=1)
+        flux15 *= blue_gain  # convert to electrons
+        fluxerr15 *= blue_gain  # convert to electrons
+        flux10, fluxerr10, _ = sep.sum_circle(frame_data_corr, zp_calc_objects['X'], zp_calc_objects['Y'],
+                                              10.0 / args.binning,
+                                              subpix=0, gain=1)
+        flux10 *= blue_gain  # convert to electrons
+        fluxerr10 *= blue_gain  # convert to electrons
+        flux5, fluxerr5, _ = sep.sum_circle(frame_data_corr, zp_calc_objects['X'], zp_calc_objects['Y'],
+                                              5.0 / args.binning,
+                                              subpix=0, gain=1)
+        flux5 *= blue_gain  # convert to electrons
+        fluxerr5 *= blue_gain  # convert to electrons
+        zp_calc_objects['FLUX20_e-'] = flux20
+        zp_calc_objects['FLUXERR20_e-'] = fluxerr20
+        zp_calc_objects['FLUX15_e-'] = flux15
+        zp_calc_objects['FLUXERR15_e-'] = fluxerr15
+        zp_calc_objects['FLUX10_e-'] = flux10
+        zp_calc_objects['FLUXERR10_e-'] = fluxerr10
+        zp_calc_objects['FLUX5_e-'] = flux5
+        zp_calc_objects['FLUXERR5_e-'] = fluxerr5
+        zp_20_delta_mag = matched_cat[zp_filter][reference_mag] + 2.5 * np.log10(zp_calc_objects['FLUX20_e-'] / frame_exptime)
+        zp_20_mean, _, zp_20_stddev = sigma_clipped_stats(zp_20_delta_mag, sigma=zp_clip_sigma)
+        zp_15_delta_mag = matched_cat[zp_filter][reference_mag] + 2.5 * np.log10(zp_calc_objects['FLUX15_e-'] / frame_exptime)
+        zp_15_mean, _, zp_15_stddev = sigma_clipped_stats(zp_15_delta_mag, sigma=zp_clip_sigma)
+        zp_10_delta_mag = matched_cat[zp_filter][reference_mag] + 2.5 * np.log10(zp_calc_objects['FLUX10_e-'] / frame_exptime)
+        zp_10_mean, _, zp_10_stddev = sigma_clipped_stats(zp_10_delta_mag, sigma=zp_clip_sigma)
+        zp_5_delta_mag = matched_cat[zp_filter][reference_mag] + 2.5 * np.log10(zp_calc_objects['FLUX5_e-'] / frame_exptime)
+        zp_5_mean, _, zp_5_stddev = sigma_clipped_stats(zp_5_delta_mag, sigma=zp_clip_sigma)
 
     except Exception:
-        print("{} failed WCS, skipping...\n".format(input_path))
+        # print("{} failed WCS, skipping...\n".format(input_path))
         # traceback.print_exc(file=sys.stdout)
         return None, None, None, None, None
 
     # Add zero point to header
-    output.header['ZP_20r'] = zp_mean
-    output.header['ZPSTD_20r'] = zp_stddev
+    output.header['ZP_20r_e-'] = zp_20_mean
+    output.header['ZPSTD_20r_e-'] = zp_20_stddev
+    output.header['ZP_15r_e-'] = zp_15_mean
+    output.header['ZPSTD_15r_e-'] = zp_15_stddev
+    output.header['ZP_10r_e-'] = zp_10_mean
+    output.header['ZPSTD_10r_e-'] = zp_10_stddev
+    output.header['ZP_5r_e-'] = zp_5_mean
+    output.header['ZPSTD_5r_e-'] = zp_5_stddev
+    output.header['Fit_RMS_ARCSEC'] = xy_residuals_rms
 
     # Add background level and RMS to header
     output.header['BACK-LVL'] = frame_bg.globalback
     output.header['BACK-RMS'] = frame_bg.globalrms
-
-    # print(f"Mean ZP (ADU) (10 pixel radius) = {zp_mean:.4f} ± {zp_stddev:.4f}, "
-    #       f"Background Level = {frame_bg.globalback:.4f} ± {frame_bg.globalrms:.4f}")
 
     # output the updated solved fits image
     fits.HDUList(hdu_list).writeto(output_path, overwrite=True)
@@ -535,7 +567,7 @@ def prepare_frame(input_path, output_path, catalog, force3rd, reference_mag):
 
 if __name__ == "__main__":
     args = arg_parse()
-    reference_mag = "BP_MAG" if args.camera == "blue" else "RP_MAG"
+    reference_mag = "BP_MAG"
 
     # check for a catalog
     if not os.path.exists(args.cat_file):
@@ -555,7 +587,7 @@ if __name__ == "__main__":
             header = fits.getheader(input_image)
 
             # check for existing solved images by looking for A_0_0
-            if 'A_0_0' in header and ('ZP_20r' in header or 'ZP_20R' in header):
+            if 'A_0_0' in header and ('ZP_20r_e-' in header or 'ZP_20R_E-' in header):
                 # print(f"{input_image} already solved, skipping...")
                 wcs_store.append(WCS(header))
                 continue
@@ -621,10 +653,7 @@ if __name__ == "__main__":
 
                 # plot residuals versus brightness
                 ax[1].plot(catalog_matched[reference_mag], residuals, 'k.')
-                if args.camera == 'blue':
-                    ax[1].set_xlabel('${G}_\mathrm{BP}$ (mag)')
-                else:
-                    ax[1].set_xlabel('${G}_\mathrm{RP}$ (mag)')
+                ax[1].set_xlabel('${G}_\mathrm{BP}$ (mag)')
                 ax[1].set_ylabel('Delta XY (pix)')
 
                 fig.tight_layout()

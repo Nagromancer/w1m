@@ -35,7 +35,7 @@ def measure_hfd(files, binning, plot=True, sep_threshold=1.3, verbose=False):
 
         except OSError:
             print(f"Error reading {file}. Removing from list.")
-            os.remove(file)
+            # os.remove(file)
             failed_reads += 1
             continue
 
@@ -84,36 +84,48 @@ def measure_hfd(files, binning, plot=True, sep_threshold=1.3, verbose=False):
         flux, _, flux_flag = sep.sum_ellipse(data_sub, hfd_measurement_objects['x'], hfd_measurement_objects['y'],
                                              hfd_measurement_objects['a'], hfd_measurement_objects['b'],
                                              hfd_measurement_objects['theta'], 2.5 * kronrad, subpix=0)
-        r, radius_flag = sep.flux_radius(data_sub, hfd_measurement_objects['x'], hfd_measurement_objects['y'],
-                                         6.0 * hfd_measurement_objects['a'], 0.5, normflux=flux, subpix=5)
-        filt = np.logical_and.reduce([
-            kron_flag == 0,
-            flux_flag == 0,
-            radius_flag == 0
-        ])
-        fluxes = flux[filt]
-        hfds1 = 2 * r[filt] * plate_scale * binning
+
+        # measure the x% flux diameter
+        flux_fractions = [0.5]
+        flux_diameters = []
+        for flux_fraction in flux_fractions:
+            r, radius_flag = sep.flux_radius(data_sub, hfd_measurement_objects['x'], hfd_measurement_objects['y'],
+                                             6.0 * hfd_measurement_objects['a'], flux_fraction, normflux=flux, subpix=5)
+            filt = np.logical_and.reduce([
+                kron_flag == 0,
+                flux_flag == 0,
+                radius_flag == 0
+            ])
+            fluxes = flux[filt]
+            fds1 = 2 * r[filt] * plate_scale * binning
+            median_fd = np.median(fds1)
+            flux_diameters.append(median_fd)
+
+
         if plot:
             # plot hfd against flux with log scale histogram of hfds
             fig, ax = plt.subplots(1, 2, figsize=(10, 5))
             # plot side by side
-            ax[0].scatter(fluxes, hfds1, s=1)
+            ax[0].scatter(fluxes, fds1, s=1)
             ax[0].set_xlabel('Flux')
             ax[0].set_ylabel('HFD')
             ax[0].set_xscale('log')
             ax[0].set_yscale('log')
             ax[0].set_title('HFD vs Flux')
-            ax[1].hist(hfds1[hfds1 < 10], bins=100, log=True)
+            ax[1].hist(fds1[fds1 < 10], bins=100, log=True)
             ax[1].set_xlabel('HFD')
             ax[1].set_ylabel('Count')
             ax[1].set_title('HFD Histogram')
-            ax[1].axvline(np.median(hfds1), color='r', linestyle='--')
+            ax[1].axvline(np.median(fds1), color='r', linestyle='--')
             plt.tight_layout()
             plt.show()
 
-        median_hfd = np.median(hfds1)
 
         # add hfd to header, with units in the comment
+        for flux_fraction, median_fd in zip(flux_fractions, flux_diameters):
+            header.add_record(dict(name=f'FD{int(flux_fraction*100):02d}', value=median_fd, comment=f'{int(flux_fraction*100)}% Flux Diameter (arcsec)'))
+            if flux_fraction == 0.5:
+                median_hfd = median_fd
         header.add_record(dict(name='HFD', value=median_hfd, comment='Half-Flux Diameter (arcsec)'))
 
         try:

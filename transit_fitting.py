@@ -189,7 +189,7 @@ elif obs == "w1m":
                      (1,),
                      ]
 elif obs == "gtc":
-    initial_poses = [(-0.0008, 1.0857, 114.0928, 0.0008, 0.002, 0.0893),]
+    initial_poses = [(-0.0003473, 1.039593, 114.0918, 0.0001, 0.0024, 0.0408, 114.093, 0.0002, 0.0002, 0.01, 114.0947, 0.0013, 0.0004, 0.0566, 114.0971, 0.0007, 0.0007, 0.0158),]
 
 print("t_min, t_min_-, t_min_+, depth, depth_-, depth_+, width, width_-, width+, area, area_-, area_+, t0, t0_-, t0_+, ti, ti_-, ti_+, te, te_-, te_+, a, a_-, a_+, w1m, tom, tnt")
 print(f"Length of initial_poses: {len(initial_poses)}")
@@ -223,25 +223,28 @@ for night, initial_pos in [(i, initial_poses[i]) for i in range(len(initial_pose
     fluxes = flux_nights[night]
     flux_err = flux_err_nights[night]
 
-    plt.errorbar(times + ephemeris - 2460000, fluxes, yerr=flux_err, fmt='o', color=colours[1], label="Data", alpha=0.05)
+    plt.errorbar(times + ephemeris - 2460000, fluxes, yerr=flux_err, fmt='o', color=colours[1], label="Data", alpha=0.5)
     plt.plot(times + ephemeris - 2460000, model_function(initial_pos, times), 'g-', label="Initial Guess")
+    plt.xlim(824.483, 824.5)
     plt.xlabel("BJD - 2460000")
     plt.ylabel("Flux")
     plt.legend()
     plt.grid()
     plt.show()
+    # exit()
 
     nwalkers, ndim = pos.shape
-    if not Path(sampler_path / f'sampler_{obs}_{night}.pkl').exists():
+    full_sampler_path = sampler_path / f'sampler_{obs}_{night}_test.pkl'
+    if not Path(full_sampler_path).exists():
         sampler = emcee.EnsembleSampler(
             nwalkers, ndim, log_probability, args=((times), (fluxes), (flux_err)))
         sampler.run_mcmc(pos, 10000, progress=True)
 
         # pickle the sampler
-        with open(sampler_path / f'sampler_{obs}_{night}.pkl', 'wb') as f:
+        with open(full_sampler_path, 'wb') as f:
             pickle.dump(sampler, f)
     else:
-        with open(sampler_path / f'sampler_{obs}_{night}.pkl', 'rb') as f:
+        with open(full_sampler_path, 'rb') as f:
             sampler = pickle.load(f)
 
     samples = sampler.get_chain()
@@ -330,7 +333,7 @@ for night, initial_pos in [(i, initial_poses[i]) for i in range(len(initial_pose
         print(f"{best_fits[4 * i + 4]:.5f},{lower_uncertainties[4 * i + 4]:.5f},{upper_uncertainties[4 * i + 4]:.5f}", end=",")
         print(f"{best_fits[4 * i + 5]:.5f},{lower_uncertainties[4 * i + 5]:.5f},{upper_uncertainties[4 * i + 5]:.5f},{obs_flag}")
     print()
-    print([round(x, 4) for x in best_fits])
+    print([round(x, 7) for x in best_fits])
 
     plt.plot(times + ephemeris - 2460000, model_function(best_fits, times), 'r-', label="Model")
     plt.errorbar(times + ephemeris - 2460000, fluxes, yerr=flux_err, fmt='o', color=colours[1], label="Data", alpha=0.05)

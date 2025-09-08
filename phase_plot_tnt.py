@@ -34,18 +34,25 @@ tnt_time = tnt_lc["bjd"]
 tnt_flux = tnt_lc["flux"]
 tnt_flux_err = tnt_lc["err"]
 
+# gtc data
+gtc_lc_path = Path("/Users/nagro/PycharmProjects/w1m/lcs/gtc_detrended_flux.csv")
+gtc_lc = np.genfromtxt(gtc_lc_path, delimiter=",", names=True)
+gtc_time = gtc_lc["bjd"]
+gtc_flux = gtc_lc["flux"]
+gtc_flux_err = gtc_lc["err"]
 
-# combine the two datasets
-time = np.concatenate((tom_time, w1m_time, tnt_time))
-flux = np.concatenate((tom_flux, w1m_flux, tnt_flux))
-flux_err = np.concatenate((tom_flux_err, w1m_flux_err, tnt_flux_err))
+# combine the four datasets
+time = np.concatenate((tom_time, w1m_time, tnt_time, gtc_time))
+flux = np.concatenate((tom_flux, w1m_flux, tnt_flux, gtc_flux))
+flux_err = np.concatenate((tom_flux_err, w1m_flux_err, tnt_flux_err, gtc_flux_err))
 
-min_time = 2460710.092
+period = 0.617118
+min_time = 2460710.39802 + period / 2
+dp_dt = -0.0000071875  # days per day
 
 time -= min_time  # convert to days since first observation
 end_time = np.max(time)
 
-period = 14.803 / 24
 
 offset = 2 * period / 10
 folded_time = time / period
@@ -53,24 +60,29 @@ folded_time = time / period
 tom_time -= min_time  # convert to days since first observation
 tnt_time -= min_time  # convert to days since first observation
 w1m_time -= min_time  # convert to days since first observation
+gtc_time -= min_time  # convert to days since first observation
 
 tom_binned_time, tom_binned_flux, tom_binned_flux_errs = bin_data(bin_size, tom_time, tom_flux, tom_flux_err)
 tnt_binned_time, tnt_binned_flux, tnt_binned_flux_errs = bin_data(bin_size, tnt_time, tnt_flux, tnt_flux_err)
 w1m_binned_time, w1m_binned_flux, w1m_binned_flux_errs = bin_data(bin_size, w1m_time, w1m_flux, w1m_flux_err)
+gtc_binned_time, gtc_binned_flux, gtc_binned_flux_errs = bin_data(bin_size, gtc_time, gtc_flux, gtc_flux_err)
 
-folded_tom_time = tom_time / period
-tom_binned_time = tom_binned_time / period
-folded_tnt_time = tnt_time / period
-tnt_binned_time = tnt_binned_time / period
-folded_w1m_time = w1m_time / period
-w1m_binned_time = w1m_binned_time / period
+folded_tom_time = tom_time / (tom_time * dp_dt / 2 + period)
+tom_binned_time = tom_binned_time / (tom_binned_time * dp_dt / 2 + period)
+folded_tnt_time = tnt_time / (tnt_time * dp_dt / 2 + period)
+tnt_binned_time = tnt_binned_time / (tnt_binned_time * dp_dt / 2 + period)
+folded_w1m_time = w1m_time / (w1m_time * dp_dt / 2 + period)
+w1m_binned_time = w1m_binned_time / (w1m_binned_time * dp_dt / 2 + period)
+folded_gtc_time = gtc_time / (gtc_time * dp_dt / 2 + period)
+gtc_binned_time = gtc_binned_time / (gtc_binned_time * dp_dt / 2 + period)
 
 fig, ax1 = plt.subplots(figsize=(15, 20))
 
 blue = "#648FFF"
 orange = "#DC267F"
 pink = "#FFB000"
-colours = [blue, orange, pink]
+green = "#008000"
+colours = [blue, orange, pink, green]
 
 plt.errorbar((folded_w1m_time % 1) - 0.5, w1m_flux - 1 + offset * np.floor(folded_w1m_time),
              yerr=w1m_flux_err, fmt='o', color=colours[0], markersize=5, alpha=0.1)
@@ -84,6 +96,10 @@ plt.errorbar((folded_tom_time % 1) - 0.5, tom_flux - 1 + offset * np.floor(folde
              yerr=tom_flux_err, fmt='s', color=colours[2], markersize=5, alpha=0.1)
 plt.errorbar((tom_binned_time % 1) - 0.5, tom_binned_flux - 1 + offset * np.floor(tom_binned_time),
              yerr=tom_binned_flux_errs, fmt='s', color=colours[2], markersize=5, label='Tom')
+plt.errorbar((folded_gtc_time % 1) - 0.5, gtc_flux - 1 + offset * np.floor(folded_gtc_time),
+                yerr=gtc_flux_err, fmt='x', color=colours[3], markersize=5, alpha=0.1)
+plt.errorbar((gtc_binned_time % 1) - 0.5, gtc_binned_flux - 1 + offset * np.floor(gtc_binned_time),
+                yerr=gtc_binned_flux_errs, fmt='x', color=colours[3], markersize=5, label='GTC')
 
 # read the transit file
 transit_path = Path("/Users/nagro/PycharmProjects/w1m/transit_params.csv")
@@ -95,17 +111,16 @@ transit_data = np.genfromtxt(transit_path, delimiter=",", names=True)
 #     # check if id is nan
 #     if np.isnan(id):
 #         continue
-#     x = (time / period) % 1 - 0.5
+#     x = (time / (time * dp_dt / 2 + period)) % 1 - 0.5
 #     y = offset * np.floor(time / period) + 0.5
-#     plt.text(x, y, str(int(id)), fontsize=32, color="black", ha="center", va="center")
+#     plt.text(x, y, str(int(id)+1), fontsize=32, color="black", ha="center", va="center")
 
 
 # subtract one from the ax1 y ticks and y tick labels
-
 ax1.set_title(f"SDSS1234+5606", pad=30)
 ax1.set_xlabel(f"Phase")
 ax1.set_ylabel(f"Relative Flux $+$ Offset")
-ax1.legend(loc=(0.75, 0.6), fontsize=32)
+ax1.legend(loc=(0.79, 0.487), fontsize=26)
 ax1.set_xlim(-0.55, 0.55)
 lower_lim = -0.5
 upper_lim = offset * np.floor(end_time / period) + 0.5

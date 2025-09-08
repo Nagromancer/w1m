@@ -24,27 +24,18 @@ depth_errors = np.array(list(zip(source["depth_minus"], source["depth_plus"]))).
 t0_errors = np.array(list(zip(source["t0_minus"], source["t0_plus"]))).T
 area_errors = np.array(list(zip(source["area_minus"], source["area_plus"]))).T
 
-# plot o - c against t_min
-period = 14.8029 / 24
-plt.figure()
-
-observed = source["t_min"] - 2460710.39967
-o_minus_c = ((observed + period / 2) % period - period / 2) * 1440
-plt.errorbar(source["t_min"] - 2.46e6, o_minus_c, xerr=t_min_errors, yerr=t_min_errors * 1440, fmt="o", color="black", markersize=5, capsize=5)
-plt.xlabel("Max Depth Time (BJD - 2460000)")
-plt.ylabel("O - C (min)")
-plt.grid()
-plt.show()
+mask = (area_errors.mean(axis=0) < 0.00015)
 
 # plot area vs t0
 plt.figure()
-plt.errorbar(source["t0"] - 2460000, source["area"], xerr=t0_errors, yerr=area_errors, fmt="o", color="black", markersize=5, capsize=5)
+plt.errorbar((source["t0"] - 2460000)[mask], source["area"][mask] * 86400, xerr=t0_errors[:, mask], yerr=area_errors[:, mask] * 86400, fmt="o", color="black", markersize=5, capsize=5)
 plt.xlabel("$t_0$ (BJD - 2460000)")
-plt.ylabel("Equivalent area (days)")
-plt.title(f"Equivalent width vs $t_0$ for transit {transit_id}")
+plt.ylabel("Equivalent area (seconds)")
+plt.title(f"Area vs $t_0$ for transit {transit_id}")
 plt.tight_layout()
+plt.ylim(0, 230)
+plt.grid()
 plt.show()
-
 
 def fit_transit_period_weighted(transit_times, uncertainties, P0, T0=None, plot=False):
     """
@@ -88,8 +79,11 @@ def fit_transit_period_weighted(transit_times, uncertainties, P0, T0=None, plot=
         plt.ylabel("O - C [minutes]")
         plt.title("O-C Diagram (Weighted Fit)")
         plt.grid(True)
+        # plt.ylim(-25, 25)
         plt.show()
 
+    print(f"Best-fit period: {P_fit:.7f} ± {P_err:.7f} days")
+    print(f"Best-fit T0:     {T0_fit:.5f} ± {T0_err:.5f} BJD")
     return P_fit, P_err, T0_fit, T0_err, residuals
 
 
@@ -119,20 +113,24 @@ def fit_period_decaying(transit_times, uncertainties, P0, T0=None, plot=False):
     # Extract parameters and uncertainties
     T0_fit, P_fit, Pdot_fit = popt
     T0_err, P_err, Pdot_err = np.sqrt(np.diag(pcov))
+    p_dot_over_p_unc = np.abs(Pdot_fit / P_fit * np.sqrt((Pdot_err / Pdot_fit)**2 + (P_err / P_fit)**2))
 
     if plot:
         n_fit = np.linspace(n.min(), n.max(), 100)
-        T_model = transit_model(n_fit, *popt)
-        plt.errorbar(n, (transit_times - transit_model(n, *popt)) * 1440, yerr=uncertainties * 1440,
+        plt.errorbar(n, (transit_times - transit_model(n, T0_fit, P_fit, Pdot_fit+p_dot_over_p_unc)) * 1440, yerr=uncertainties * 1440,
                      fmt='o', capsize=3, color='navy')
         plt.axhline(0, color='gray', linestyle='--')
         plt.xlabel("Transit Number")
-        plt.ylabel("O - C [days]")
+        plt.ylabel("O - C [min]")
+        # plt.ylim(-25, 25)
+        plt.grid()
         plt.show()
 
-    print(f"T0 = {T0_fit:.6f} ± {T0_err:.6f}")
-    print(f"P = {P_fit:.6f} ± {P_err:.6f}")
-    print(f"Pdot / P = {86400 * Pdot_fit / P_fit:.6f} ± {86400 * np.sqrt(Pdot_err**2 + P_err**2):.6f} seconds per day")
+
+    print(f"T0 = {T0_fit:.5f} ± {T0_err:.5f} BJD")
+    print(f"P = {P_fit:.6f} ± {P_err:.6f} day")
+    # print(f"Pdot = {Pdot_fit:.8f} ± {Pdot_err:.8f} day/transit^2")
+    print(f"dP/dt = {86400 * Pdot_fit / P_fit:.3f} ± {86400 * p_dot_over_p_unc:.3f} seconds per day")
 
 
 transits = source["t0"]
@@ -143,6 +141,4 @@ P0 = 14.8029 / 24  # initial period guess in days
 P_fit, P_err, T0_fit, T0_err, residuals = fit_transit_period_weighted(transits, uncerts, P0, plot=True)
 fit_period_decaying(transits, uncerts, P0, T0=T0_fit, plot=True)
 
-P_fit, P_err, T0_fit, T0_err, residuals = fit_transit_period_weighted(transits[-8:], uncerts[-8:], P0, plot=True)
-print(f"Best-fit period: {P_fit:.6f} ± {P_err:.6f} days")
-print(f"Best-fit T0:     {T0_fit:.5f} ± {T0_err:.5f} BJD")
+# P_fit, P_err, T0_fit, T0_err, residuals = fit_transit_period_weighted(transits[-9:], uncerts[-9:], P0, plot=True)

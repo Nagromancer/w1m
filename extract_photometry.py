@@ -30,8 +30,10 @@ def main(args):
     output_path = Path(args.output_path)
     plot_path = Path(args.plot_path)
 
-    if "Gaia" in str(output_path):
-        target_id = int(output_path.name.split("_")[-1].replace("-phot.fits", ""))
+    if "Gaia_DR3_" in str(output_path):
+        target_id = int(output_path.name.split("Gaia_DR3_")[-1].replace("-phot.fits", ""))
+    elif "Gaia DR3 " in str(output_path):
+        target_id = int(output_path.name.split("Gaia DR3 ")[-1].replace("-phot.fits", ""))
     else:
         target_id = None
     print(f"Target ID: {target_id} detected from output path.")
@@ -140,26 +142,28 @@ def main(args):
         phot_table = Table.read(output_path)
 
     if not plot_path.exists() and target_id is not None:
+        print(f"Plot path exists? {plot_path.exists()}")
         target_table = phot_table[phot_table["ID"] == target_id]
         min_time = np.min(target_table["BJD"])
         # find the smallest multiple of 100 less than min_time to use as the offset
         offset = (min_time // 100) * 100
-        # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_5"]), yerr=np.array(target_table["MAG_ERR_5"]), fmt='o', label='5 pix', color='red')
-        # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_10"]), yerr=np.array(target_table["MAG_ERR_10"]), fmt='o', label='10 pix', color='blue')
-        plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_15"]), yerr=np.array(target_table["MAG_ERR_15"]), fmt='o', label='15 pix', color='green')
-        # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_20"]), yerr=np.array(target_table["MAG_ERR_20"]), fmt='o', label='20 pix', color='orange')
-        plt.xlabel(f'BJD - {offset:.0f}')
+        # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_5"]), yerr=np.array(target_table["MAG_ERR_5"]), fmt='o', color='red', capsize=5)
+        # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_10"]), yerr=np.array(target_table["MAG_ERR_10"]), fmt='o', color='black', capsize=5)
+        plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_15"]), yerr=np.array(target_table["MAG_ERR_15"]), fmt='o', color='green', capsize=5)
+        # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_20"]), yerr=np.array(target_table["MAG_ERR_20"]), fmt='o', color='orange', capsize=5)
+        plt.xlabel(r'Time (BJD$_\mathrm{TDB}$'f' - {offset:.0f})')
         plt.ylabel('$G_{\mathrm{BP}}$ (mag)')
         plt.gca().invert_yaxis()  # invert y-axis for magnitude
         # put gaia in italics
-        plt.title(fr'Light Curve for \textit{{Gaia}} DR3 {target_id}')
+        plt.title(fr'\textit{{Gaia}} DR3 {target_id}')
         plt.grid()
-        plt.legend()
         plt.savefig(plot_path)
         print(f"Saved light curve for target {target_id} at {plot_path}.")
         plt.close()
     else:
         print(f"Light curve for target {target_id} already exists at {plot_path}.")
+        print(f"Plot path exists? {plot_path.exists()}")
+        print(f"ID: {target_id}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract Photometry')

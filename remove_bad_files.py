@@ -4,10 +4,9 @@ import numpy as np
 from path import Path
 import os
 import sys
-from astropy.wcs import WCS
 import warnings
 import argparse
-from utilities import red_gain, blue_gain
+from utilities import blue_gain
 
 
 def check_images(files, output_path, min_zp=23.5, max_hfd=4.5):

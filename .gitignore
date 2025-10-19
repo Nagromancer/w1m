@@ -3,3 +3,7 @@
 .idea/*
 *.fits
 *.pdf
+*.csv
+*.asc
+*.pkl
+*.dat

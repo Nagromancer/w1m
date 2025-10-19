@@ -4,7 +4,7 @@ home_dir="/Volumes/SanDisk-2TB-SSD/w1m"
 bin="/Users/nagro/PycharmProjects/w1m"
 
 dates=("$home_dir"/dates/*) # Expand correctly
-first_date="20250814"
+first_date="20251014"
 
 new_dates=()
 found_first=false
@@ -42,7 +42,11 @@ for date in $dates; do
     # first to see if there are any files ending with .fits in the directory
     if ls $base_dir/*.fits 1> /dev/null 2>&1; then
       for file in $base_dir/*".fits"; do
-      if [[ $file == *"flat"* ]]; then continue; fi # don't treat the flat directory as a target
+#      if [[ $file == *"flat"* ]]; then continue; fi # don't treat the flat directory as a target
+# do for dark and bias files too
+      if [[ $file == *"dark"* || $file == *"bias"* || $file == *"flat"* ]]; then
+        continue
+      fi
       target=$(awk -F'-' '{
       if (NF >= 2) {
         for (i = 1; i <= NF - 2; i++) {
@@ -78,10 +82,10 @@ for date in $dates; do
     echo "Master flat already exists for blue camera with binning $bin_x x $bin_y"
   fi
 
-#  if [[ -d $target/plots ]]; then
-#    echo "Skipping $target"
-#    continue
-#  fi
+  if [[ -d $target/plots ]]; then
+    echo "Skipping $target"
+    continue
+  fi
 
   # get a list of targets from the non-flat directories in the base directory
   targets=$(find $base_dir -mindepth 1 -maxdepth 1 -type d ! -name "flat")
@@ -148,7 +152,7 @@ for date in $dates; do
     fi
 
     # extract photometry
-    python $bin/extract_photometry.py "$ref_cat" $target/calibrated "$target/$date_only-$target_only-phot.fits" "$bin_x"
+    python $bin/extract_photometry.py "$ref_cat" $target/calibrated "$target/$date_only-$target_only-phot.fits" $target/plots/lightcurve.png "$bin_x"
     echo "\n"
   done
 done

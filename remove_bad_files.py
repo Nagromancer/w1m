@@ -9,7 +9,7 @@ import argparse
 from utilities import blue_gain
 
 
-def check_images(files, output_path, min_zp=23.5, max_hfd=4.5):
+def check_images(files, output_path, min_zp=20, max_hfd=10):
     count = 0
     gain_corrected_min_zp = min_zp - 2.5 * np.log10(blue_gain)
     print(f"Checking {len(files)} files for bad images.")

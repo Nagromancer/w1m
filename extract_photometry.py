@@ -149,8 +149,10 @@ def main(args):
         offset = (min_time // 100) * 100
         # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_5"]), yerr=np.array(target_table["MAG_ERR_5"]), fmt='o', color='red', capsize=5)
         # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_10"]), yerr=np.array(target_table["MAG_ERR_10"]), fmt='o', color='black', capsize=5)
-        plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_15"]), yerr=np.array(target_table["MAG_ERR_15"]), fmt='o', color='green', capsize=5)
-        # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_20"]), yerr=np.array(target_table["MAG_ERR_20"]), fmt='o', color='orange', capsize=5)
+        # plt.plot(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_10"]), '-', color='black', alpha=0.5)
+        # plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_15"]), yerr=np.array(target_table["MAG_ERR_15"]), fmt='o', color='green', capsize=5)
+        plt.errorbar(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_20"]), yerr=np.array(target_table["MAG_ERR_20"]), fmt='o', color='green', capsize=5)
+        plt.plot(np.array(target_table["BJD"]) - offset, np.array(target_table["MAG_20"]), '-', color='green', alpha=0.5)
         plt.xlabel(r'Time (BJD$_\mathrm{TDB}$'f' - {offset:.0f})')
         plt.ylabel('$G_{\mathrm{BP}}$ (mag)')
         plt.gca().invert_yaxis()  # invert y-axis for magnitude

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 source_path = Path("/Users/nagro/PycharmProjects/w1m/transit_params.csv")
+plot_path = Path("/Users/nagro/PycharmProjects/w1m/ephemeris_plots")
 source = np.genfromtxt(source_path, delimiter=",", names=True)
 
 transit_id = 2
@@ -26,16 +27,16 @@ area_errors = np.array(list(zip(source["area_minus"], source["area_plus"]))).T
 
 mask = (area_errors.mean(axis=0) < 0.00015)
 
-# plot area vs t0
-plt.figure()
-plt.errorbar((source["t0"] - 2460000)[mask], source["area"][mask] * 86400, xerr=t0_errors[:, mask], yerr=area_errors[:, mask] * 86400, fmt="o", color="black", markersize=5, capsize=5)
-plt.xlabel("$t_0$ (BJD - 2460000)")
-plt.ylabel("Equivalent area (seconds)")
-plt.title(f"Area vs $t_0$ for transit {transit_id}")
-plt.tight_layout()
-plt.ylim(0, 230)
-plt.grid()
-plt.show()
+# # plot area vs t0
+# plt.figure()
+# plt.errorbar((source["t0"] - 2460000)[mask], source["area"][mask] * 86400, xerr=t0_errors[:, mask], yerr=area_errors[:, mask] * 86400, fmt="o", color="black", markersize=5, capsize=5)
+# plt.xlabel("$t_0$ (BJD - 2460000)")
+# plt.ylabel("Equivalent area (seconds)")
+# plt.title(f"Area vs $t_0$ for transit {transit_id}")
+# plt.tight_layout()
+# plt.ylim(0, 230)
+# plt.grid()
+# plt.show()
 
 def fit_transit_period_weighted(transit_times, uncertainties, P0, T0=None, plot=False):
     """
@@ -77,9 +78,12 @@ def fit_transit_period_weighted(transit_times, uncertainties, P0, T0=None, plot=
         plt.axhline(0, color='gray', linestyle='--')
         plt.xlabel("Transit Number")
         plt.ylabel("O - C [minutes]")
-        plt.title("O-C Diagram (Weighted Fit)")
+        plt.title(f"O-C Diagram (Transit {transit_id+1})")
+        plt.text(0.35, 0.15, rf"$P={P_fit*24:.6f}\pm{P_err*24:.6f}$"" hours", transform=plt.gca().transAxes, fontsize=32)
+        plt.text(0.35, 0.05, rf"$T_0={T0_fit:.5f}\pm{T0_err:.5f}$"" BJD", transform=plt.gca().transAxes, fontsize=32)
         plt.grid(True)
         # plt.ylim(-25, 25)
+        plt.savefig(plot_path / f"transit_{transit_id+1}_linear.png", dpi=200)
         plt.show()
 
     print(f"Best-fit period: {P_fit:.7f} ± {P_err:.7f} days")
@@ -115,6 +119,14 @@ def fit_period_decaying(transit_times, uncertainties, P0, T0=None, plot=False):
     T0_err, P_err, Pdot_err = np.sqrt(np.diag(pcov))
     p_dot_over_p_unc = np.abs(Pdot_fit / P_fit * np.sqrt((Pdot_err / Pdot_fit)**2 + (P_err / P_fit)**2))
 
+    dp_dt = 86400 * Pdot_fit / P_fit  # seconds per day
+    dp_dt_e = 86400 * p_dot_over_p_unc  # seconds per day
+
+    print(f"T0 = {T0_fit:.5f} ± {T0_err:.5f} BJD")
+    print(f"P = {P_fit:.6f} ± {P_err:.6f} day")
+    # print(f"Pdot = {Pdot_fit:.8f} ± {Pdot_err:.8f} day/transit^2")
+    print(f"dP/dt = {dp_dt:.3f} ± {dp_dt_e:.3f} seconds per day")
+
     if plot:
         n_fit = np.linspace(n.min(), n.max(), 100)
         plt.errorbar(n, (transit_times - transit_model(n, T0_fit, P_fit, Pdot_fit+p_dot_over_p_unc)) * 1440, yerr=uncertainties * 1440,
@@ -122,15 +134,12 @@ def fit_period_decaying(transit_times, uncertainties, P0, T0=None, plot=False):
         plt.axhline(0, color='gray', linestyle='--')
         plt.xlabel("Transit Number")
         plt.ylabel("O - C [min]")
+        plt.title(f"O-C Diagram with Decaying Period (Transit {transit_id+1})")
+        plt.text(0.5, 0.05, rf"$\frac{{dP}}{{dt}}={dp_dt:.3f}\pm{dp_dt_e:.3f}$"" s day$^{-1}$", transform=plt.gca().transAxes, fontsize=32)
         # plt.ylim(-25, 25)
         plt.grid()
+        plt.savefig(plot_path / f"transit_{transit_id+1}_decaying.png", dpi=200)
         plt.show()
-
-
-    print(f"T0 = {T0_fit:.5f} ± {T0_err:.5f} BJD")
-    print(f"P = {P_fit:.6f} ± {P_err:.6f} day")
-    # print(f"Pdot = {Pdot_fit:.8f} ± {Pdot_err:.8f} day/transit^2")
-    print(f"dP/dt = {86400 * Pdot_fit / P_fit:.3f} ± {86400 * p_dot_over_p_unc:.3f} seconds per day")
 
 
 transits = source["t0"]
@@ -139,6 +148,10 @@ P0 = 14.8029 / 24  # initial period guess in days
 
 
 P_fit, P_err, T0_fit, T0_err, residuals = fit_transit_period_weighted(transits, uncerts, P0, plot=True)
-fit_period_decaying(transits, uncerts, P0, T0=T0_fit, plot=True)
+print(f"Fitting decaying period model:")
+try:
+    fit_period_decaying(transits, uncerts, P0, T0=T0_fit, plot=True)
+except:
+    pass
 
 # P_fit, P_err, T0_fit, T0_err, residuals = fit_transit_period_weighted(transits[-9:], uncerts[-9:], P0, plot=True)

@@ -129,7 +129,7 @@ def fit_period_decaying(transit_times, uncertainties, P0, T0=None, plot=False):
 
     if plot:
         n_fit = np.linspace(n.min(), n.max(), 100)
-        plt.errorbar(n, (transit_times - transit_model(n, T0_fit, P_fit, Pdot_fit+p_dot_over_p_unc)) * 1440, yerr=uncertainties * 1440,
+        plt.errorbar(n, (transit_times - transit_model(n, T0_fit, P_fit, Pdot_fit)) * 1440, yerr=uncertainties * 1440,
                      fmt='o', capsize=3, color='navy')
         plt.axhline(0, color='gray', linestyle='--')
         plt.xlabel("Transit Number")

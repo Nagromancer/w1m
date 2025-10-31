@@ -47,8 +47,8 @@ flux = np.concatenate((tom_flux, w1m_flux, tnt_flux, gtc_flux))
 flux_err = np.concatenate((tom_flux_err, w1m_flux_err, tnt_flux_err, gtc_flux_err))
 
 period = 0.617118
-min_time = 2460710.39802 + period / 2
-dp_dt = -0.0000071875  # days per day
+min_time = 2460710.39802 + - period / 2
+dp_dt = 0#-0.0000071875  # days per day
 
 time -= min_time  # convert to days since first observation
 end_time = np.max(time)
@@ -95,7 +95,7 @@ plt.errorbar((tnt_binned_time % 1) - 0.5, tnt_binned_flux - 1 + offset * np.floo
 plt.errorbar((folded_tom_time % 1) - 0.5, tom_flux - 1 + offset * np.floor(folded_tom_time),
              yerr=tom_flux_err, fmt='s', color=colours[2], markersize=5, alpha=0.1)
 plt.errorbar((tom_binned_time % 1) - 0.5, tom_binned_flux - 1 + offset * np.floor(tom_binned_time),
-             yerr=tom_binned_flux_errs, fmt='s', color=colours[2], markersize=5, label='Tom')
+             yerr=tom_binned_flux_errs, fmt='s', color=colours[2], markersize=5, label='RVO')
 plt.errorbar((folded_gtc_time % 1) - 0.5, gtc_flux - 1 + offset * np.floor(folded_gtc_time),
                 yerr=gtc_flux_err, fmt='x', color=colours[3], markersize=5, alpha=0.1)
 plt.errorbar((gtc_binned_time % 1) - 0.5, gtc_binned_flux - 1 + offset * np.floor(gtc_binned_time),
@@ -117,7 +117,7 @@ transit_data = np.genfromtxt(transit_path, delimiter=",", names=True)
 
 
 # subtract one from the ax1 y ticks and y tick labels
-ax1.set_title(f"SDSS1234+5606", pad=30)
+ax1.set_title(f"SBSS 1232+563", pad=30)
 ax1.set_xlabel(f"Phase")
 ax1.set_ylabel(f"Relative Flux $+$ Offset")
 ax1.legend(loc=(0.79, 0.487), fontsize=26)

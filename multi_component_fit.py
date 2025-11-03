@@ -46,7 +46,7 @@ def model_function(theta, t):
     model = m * t + c
     for i in range(num_transits):
         t0, ti, te, a = params[4 * i: 4 * (i + 1)]
-        model /= (a / (np.exp(-(t - t0) / ti) + np.exp((t - t0) / ti)) + 1)
+        model /= (a / (np.exp(-(t - t0) / ti) + np.exp((t - t0) / te)) + 1)
     return model
 
 
@@ -111,7 +111,7 @@ def fit_model(x, y, yerr, initial, t0, n_components, obs, night, transit, idx, n
     pos = initial + 1e-4 * np.random.randn(nwalkers, ndim)
 
     full_sampler_path = sampler_path / f'sampler_{obs}_{night}_{transit}_{n_components}.pkl'
-    if True:  # not Path(full_sampler_path).exists():
+    if not Path(full_sampler_path).exists():
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, args=(x, y, yerr))
         sampler.run_mcmc(pos, nsteps, progress=True)
 
@@ -358,7 +358,7 @@ print(",".join([f"{param},{param}_minus,{param}_plus" for param in sec_parameter
 for i, initial, t0, obs, night, transit in zip(range(len(initials))[start_idx:end_idx], initials[start_idx:end_idx],
                                                t0s[start_idx:end_idx], obss[start_idx:end_idx],
                                                nights[start_idx:end_idx], transits[start_idx:end_idx]):
-    if i not in bad_indices:
+    if i in bad_indices:
         continue
     if obs == "tnt":
         flux_err_nights = np.split(tnt_flux_err, np.where(np.diff(tnt_time) > 0.5)[0] + 1)

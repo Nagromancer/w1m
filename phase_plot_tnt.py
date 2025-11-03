@@ -46,9 +46,9 @@ time = np.concatenate((tom_time, w1m_time, tnt_time, gtc_time))
 flux = np.concatenate((tom_flux, w1m_flux, tnt_flux, gtc_flux))
 flux_err = np.concatenate((tom_flux_err, w1m_flux_err, tnt_flux_err, gtc_flux_err))
 
-period = 0.617118
-min_time = 2460710.39802 + - period / 2
-dp_dt = 0#-0.0000071875  # days per day
+period = 0.617068
+min_time = 2460710.402818 + - period / 2
+dp_dt = -0.00000662037 #-0.0000071875  # days per day
 
 time -= min_time  # convert to days since first observation
 end_time = np.max(time)

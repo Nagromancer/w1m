@@ -52,30 +52,48 @@ for file, c, filter in zip(lc_files, colours, filters):
     gtc_flux_flattened_i, gtc_trend_i = flatten(gtc_time_i, gtc_flux_i, window_length=0.02, method='cosine', return_trend=True, mask=mask)
     gtc_flat_err_i = gtc_err_i / gtc_trend_i
 
-    plot = False
+    plot = True
+    bin_factor = 10
     if plot:
         plot_time = (gtc_time_i - 2460824.5) * 1440
-        plt.errorbar(plot_time, gtc_flux_i, yerr=gtc_flat_err_i, fmt="o", color=c,
-                     label="GTC White Light Curve", zorder=1, alpha=0.5)
-        plt.plot(plot_time, gtc_trend_i, 'k-')
-        plt.title(f"GTC {filter.upper()} Light Curve")
-        plt.fill_between(plot_time, 0.5, 1.5, where=mask, color='gray', alpha=0.5, label='Transit Mask', zorder=0)
-        # plt.xlim(-25, 0)
-        plt.ylim(0.81, 1.15)
-        plt.grid()
-        plt.show()
+        plot_binned_time = np.mean(plot_time[:len(plot_time) // bin_factor * bin_factor].reshape(-1, bin_factor), axis=1)
+        plot_binned_flux = np.mean(gtc_flux_i[:len(gtc_flux_i) // bin_factor * bin_factor].reshape(-1, bin_factor), axis=1)
+        plot_binned_flux_error = np.sqrt(np.sum(gtc_flat_err_i[:len(gtc_flux_i) // bin_factor * bin_factor].reshape(-1, bin_factor)**2, axis=1)) / bin_factor
 
+        # plt.errorbar(plot_time, gtc_flux_i, yerr=gtc_flat_err_i, fmt="o", color=c,
+        #              label="GTC White Light Curve", zorder=1, alpha=0.05)
+        # plt.errorbar(plot_binned_time, plot_binned_flux, plot_binned_flux_error, fmt="o", color=c,
+        #                 label="Binned Light Curve", zorder=2)
+        # plt.plot(plot_time, gtc_trend_i, 'k-')
+        # plt.title(f"GTC {filter.upper()} Light Curve")
+        # plt.fill_between(plot_time, 0.5, 1.5, where=mask, color='gray', alpha=0.5, label='Transit Mask', zorder=0)
+        # # plt.xlim(-25, 0)
+        # plt.ylim(0.81, 1.15)
+        # plt.grid()
+        # plt.show()
 
+        plot_binned_flux_flat = np.mean(gtc_flux_flattened_i[:len(gtc_flux_flattened_i) // bin_factor * bin_factor].reshape(-1, bin_factor), axis=1)
+        plot_binned_flux_flat_error = np.sqrt(np.sum(gtc_flat_err_i[:len(gtc_flux_i) // bin_factor * bin_factor].reshape(-1, bin_factor)**2, axis=1)) / bin_factor
         plt.errorbar(plot_time, gtc_flux_flattened_i, yerr=gtc_flat_err_i, fmt="o", color=c,
-                     label="GTC White Light Curve Flattened", zorder=1, alpha=0.5)
+                     label="GTC White Light Curve Flattened", zorder=1, alpha=0.05)
+        plt.errorbar(plot_binned_time, plot_binned_flux_flat, yerr=plot_binned_flux_flat_error, fmt="o", color=c,
+                        label="Binned Light Curve", zorder=2)
         plt.xlabel("BJD - 2460824.5 (minutes)")
         plt.ylabel("Normalized Flux")
         plt.title(f"GTC {filter.upper()} Flattened Light Curve")
         plt.axhline(1.0, color='k', linestyle='--', label='Baseline')
-        plt.ylim(0.81, 1.15)
-        # plt.xlim(-25, 0)
+        plt.ylim(0.85, 1.1)
+        plt.xlim(-25, 0)
         plt.grid()
         plt.show()
+
+        # save flattened light curve to csv
+        gtc_flat_path = Path(f"/Users/nagro/PycharmProjects/w1m/lcs/gtc_{filter}_flattened.csv")
+        with open(gtc_flat_path, "w") as f:
+            f.write("bjd,flux,err\n")
+            for i in range(len(gtc_time_i)):
+                f.write(f"{gtc_time_i[i]:.8f},{gtc_flux_flattened_i[i]:.6f},{gtc_flat_err_i[i]:.6f}\n")
+
     print(f"{filter} - {np.sqrt(np.mean(gtc_flat_err_i**2)):.2%} photometric error")
 
     gtc_time.append(gtc_time_i)
@@ -107,6 +125,24 @@ gtc_flux_err = np.concatenate((gtc_white_flux_err[np.newaxis, :], gtc_flux_err),
 gtc_flattened_flux = np.concatenate((gtc_white_flattened[np.newaxis, :], gtc_flattened_flux), axis=0)
 gtc_flattened_flux_err = np.concatenate((gtc_white_detrended_flux_err[np.newaxis, :], gtc_flattened_flux_err), axis=0)
 
+# plot
+gtc_binned_time = np.mean(gtc_time[:len(gtc_time) // bin_factor * bin_factor].reshape(-1, bin_factor), axis=1)
+gtc_binned_white_flux = np.mean(gtc_white_flattened[:len(gtc_white_flattened) // bin_factor * bin_factor].reshape(-1, bin_factor), axis=1)
+gtc_binned_white_flux_error = np.sqrt(np.sum(gtc_white_detrended_flux_err[:len(gtc_white_flattened) // bin_factor * bin_factor].reshape(-1, bin_factor)**2, axis=1)) / bin_factor
+
+plt.errorbar((gtc_time - 2460824.5) * 1440 , gtc_white_flattened, yerr=gtc_white_detrended_flux_err, fmt="o", color="black",
+                label="GTC White Light Curve Flattened", zorder=1, alpha=0.05)
+plt.errorbar((gtc_binned_time - 2460824.5) * 1440, gtc_binned_white_flux, yerr=gtc_binned_white_flux_error, fmt="o", color="black",
+                label="Binned Light Curve", zorder=2)
+plt.xlabel("BJD - 2460824.5 (minutes)")
+plt.ylabel("Normalized Flux")
+plt.title("GTC White Light Curve Flattened")
+plt.axhline(1.0, color='k', linestyle='--', label='Baseline')
+plt.ylim(0.85, 1.1)
+plt.xlim(-25, 0)
+plt.grid()
+plt.show()
+exit()
 
 # tom's data
 lc_files = sorted(lc_dir.glob("*tom.dat"))
